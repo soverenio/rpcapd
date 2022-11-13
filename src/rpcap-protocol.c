@@ -35,11 +35,11 @@
 #include <config.h>
 #endif
 
-#include <string.h>		/* for strlen(), ... */
-#include <stdlib.h>		/* for malloc(), free(), ... */
-#include <stdarg.h>		/* for functions with variable number of arguments */
-#include <stdint.h>		/* for intN_t and uintN_t types */
-#include <errno.h>		/* for the errno variable */
+#include <string.h>        /* for strlen(), ... */
+#include <stdlib.h>        /* for malloc(), free(), ... */
+#include <stdarg.h>        /* for functions with variable number of arguments */
+#include <stdint.h>        /* for intN_t and uintN_t types */
+#include <errno.h>        /* for the errno variable */
 #include "sockutils.h"
 #include "portability.h"
 #include "rpcap-protocol.h"
@@ -81,13 +81,12 @@
  * error message is returned in the 'errbuf' variable.
  */
 int
-rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, unsigned short errcode, const char *error, char *errbuf)
-{
-	char sendbuf[RPCAP_NETBUF_SIZE];	/* temporary buffer in which data to be sent is buffered */
-	int sendbufidx = 0;			/* index which keeps the number of bytes currently buffered */
+rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, unsigned short errcode, const char *error, char *errbuf) {
+	char sendbuf[RPCAP_NETBUF_SIZE];    /* temporary buffer in which data to be sent is buffered */
+	int sendbufidx = 0;            /* index which keeps the number of bytes currently buffered */
 	uint16_t length;
 
-	length = (uint16_t)strlen(error);
+	length = (uint16_t) strlen(error);
 
 	if (length > PCAP_ERRBUF_SIZE)
 		length = PCAP_ERRBUF_SIZE;
@@ -95,11 +94,11 @@ rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, unsigned short errcode, cons
 	rpcap_createhdr((struct rpcap_header *) sendbuf, ver, RPCAP_MSG_ERROR, errcode, length);
 
 	if (sock_bufferize(NULL, sizeof(struct rpcap_header), NULL, &sendbufidx,
-		RPCAP_NETBUF_SIZE, SOCKBUF_CHECKONLY, errbuf, PCAP_ERRBUF_SIZE))
+					   RPCAP_NETBUF_SIZE, SOCKBUF_CHECKONLY, errbuf, PCAP_ERRBUF_SIZE))
 		return -1;
 
 	if (sock_bufferize(error, length, sendbuf, &sendbufidx,
-		RPCAP_NETBUF_SIZE, SOCKBUF_BUFFERIZE, errbuf, PCAP_ERRBUF_SIZE))
+					   RPCAP_NETBUF_SIZE, SOCKBUF_BUFFERIZE, errbuf, PCAP_ERRBUF_SIZE))
 		return -1;
 
 	if (sock_send(sock, ssl, sendbuf, sendbufidx, errbuf, PCAP_ERRBUF_SIZE) < 0)
@@ -135,8 +134,7 @@ rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, unsigned short errcode, cons
  * variable.
  */
 void
-rpcap_createhdr(struct rpcap_header *header, uint8_t ver, uint8_t type, uint16_t value, uint32_t length)
-{
+rpcap_createhdr(struct rpcap_header *header, uint8_t ver, uint8_t type, uint16_t value, uint32_t length) {
 	memset(header, 0, sizeof(struct rpcap_header));
 
 	header->ver = ver;
@@ -149,42 +147,41 @@ rpcap_createhdr(struct rpcap_header *header, uint8_t ver, uint8_t type, uint16_t
  * Convert a message type to a string containing the type name.
  */
 static const char *requests[] =
-{
-	NULL,				/* not a valid message type */
-	"RPCAP_MSG_ERROR",
-	"RPCAP_MSG_FINDALLIF_REQ",
-	"RPCAP_MSG_OPEN_REQ",
-	"RPCAP_MSG_STARTCAP_REQ",
-	"RPCAP_MSG_UPDATEFILTER_REQ",
-	"RPCAP_MSG_CLOSE",
-	"RPCAP_MSG_PACKET",
-	"RPCAP_MSG_AUTH_REQ",
-	"RPCAP_MSG_STATS_REQ",
-	"RPCAP_MSG_ENDCAP_REQ",
-	"RPCAP_MSG_SETSAMPLING_REQ",
-};
-#define NUM_REQ_TYPES	(sizeof requests / sizeof requests[0])
+		{
+				NULL,                /* not a valid message type */
+				"RPCAP_MSG_ERROR",
+				"RPCAP_MSG_FINDALLIF_REQ",
+				"RPCAP_MSG_OPEN_REQ",
+				"RPCAP_MSG_STARTCAP_REQ",
+				"RPCAP_MSG_UPDATEFILTER_REQ",
+				"RPCAP_MSG_CLOSE",
+				"RPCAP_MSG_PACKET",
+				"RPCAP_MSG_AUTH_REQ",
+				"RPCAP_MSG_STATS_REQ",
+				"RPCAP_MSG_ENDCAP_REQ",
+				"RPCAP_MSG_SETSAMPLING_REQ",
+		};
+#define NUM_REQ_TYPES    (sizeof requests / sizeof requests[0])
 
 static const char *replies[] =
-{
-	NULL,
-	NULL,			/* this would be a reply to RPCAP_MSG_ERROR */
-	"RPCAP_MSG_FINDALLIF_REPLY",
-	"RPCAP_MSG_OPEN_REPLY",
-	"RPCAP_MSG_STARTCAP_REPLY",
-	"RPCAP_MSG_UPDATEFILTER_REPLY",
-	NULL,			/* this would be a reply to RPCAP_MSG_CLOSE */
-	NULL,			/* this would be a reply to RPCAP_MSG_PACKET */
-	"RPCAP_MSG_AUTH_REPLY",
-	"RPCAP_MSG_STATS_REPLY",
-	"RPCAP_MSG_ENDCAP_REPLY",
-	"RPCAP_MSG_SETSAMPLING_REPLY",
-};
-#define NUM_REPLY_TYPES	(sizeof replies / sizeof replies[0])
+		{
+				NULL,
+				NULL,            /* this would be a reply to RPCAP_MSG_ERROR */
+				"RPCAP_MSG_FINDALLIF_REPLY",
+				"RPCAP_MSG_OPEN_REPLY",
+				"RPCAP_MSG_STARTCAP_REPLY",
+				"RPCAP_MSG_UPDATEFILTER_REPLY",
+				NULL,            /* this would be a reply to RPCAP_MSG_CLOSE */
+				NULL,            /* this would be a reply to RPCAP_MSG_PACKET */
+				"RPCAP_MSG_AUTH_REPLY",
+				"RPCAP_MSG_STATS_REPLY",
+				"RPCAP_MSG_ENDCAP_REPLY",
+				"RPCAP_MSG_SETSAMPLING_REPLY",
+		};
+#define NUM_REPLY_TYPES    (sizeof replies / sizeof replies[0])
 
 const char *
-rpcap_msg_type_string(uint8_t type)
-{
+rpcap_msg_type_string(uint8_t type) {
 	if (type & RPCAP_MSG_IS_REPLY) {
 		type &= ~RPCAP_MSG_IS_REPLY;
 		if (type >= NUM_REPLY_TYPES)

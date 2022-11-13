@@ -30,5 +30,6 @@ typedef enum {
 	LOGPRIO_ERROR
 } log_priority;
 
-extern void rpcapd_log(log_priority priority,
-    PCAP_FORMAT_STRING(const char *message), ...) PCAP_PRINTFLIKE(2, 3);
+extern void rpcapd_log(log_priority priority, PCAP_FORMAT_STRING(const char *message), ...)
+
+PCAP_PRINTFLIKE(2, 3);

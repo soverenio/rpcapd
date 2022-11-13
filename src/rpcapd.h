@@ -34,11 +34,8 @@
 #define __RPCAPD_H__
 
 #define PROGRAM_NAME "rpcapd"
-#define SOCKET_MAXCONN 10	/* Maximum number of connections queued into the accept() */
-#ifdef _WIN32
-void send_shutdown_notification(void);	// Send notification to shut down the daemon
-void send_reread_configuration_notification(void);	// Send notification to re-read the configuration file
-#endif
+#define SOCKET_MAXCONN 10    /* Maximum number of connections queued into the accept() */
+
 void main_startup(void);
 
 #endif

@@ -41,8 +41,7 @@
 #include "portability.h"
 
 char *
-pcap_strtok_r(char *s, const char *delim, char **last)
-{
+pcap_strtok_r(char *s, const char *delim, char **last) {
 	char *spanp, *tok;
 	int c, sc;
 
@@ -54,12 +53,12 @@ pcap_strtok_r(char *s, const char *delim, char **last)
 	 */
 cont:
 	c = *s++;
-	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
+	for (spanp = (char *) delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
 			goto cont;
 	}
 
-	if (c == 0) {		/* no non-delimiter characters */
+	if (c == 0) {        /* no non-delimiter characters */
 		*last = NULL;
 		return (NULL);
 	}
@@ -71,7 +70,7 @@ cont:
 	 */
 	for (;;) {
 		c = *s++;
-		spanp = (char *)delim;
+		spanp = (char *) delim;
 		do {
 			if ((sc = *spanp++) == c) {
 				if (c == 0)

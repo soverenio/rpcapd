@@ -11,8 +11,7 @@
  * it been given an infinite-sized buffer.
  */
 int
-pcap_vasprintf(char **strp, const char *format, va_list args)
-{
+pcap_vasprintf(char **strp, const char *format, va_list args) {
 	char buf;
 	int len;
 	size_t str_size;
@@ -88,8 +87,7 @@ pcap_vasprintf(char **strp, const char *format, va_list args)
 }
 
 int
-pcap_asprintf(char **strp, const char *format, ...)
-{
+pcap_asprintf(char **strp, const char *format, ...) {
 	va_list args;
 	int ret;
 

@@ -59,7 +59,7 @@ int ssl_recv(SSL *, char *buffer, int size, char *errbuf, size_t errbuflen);
 #define SSL void const
 
 // The SSL parameters are unused
-#define _U_NOSSL_	_U_
+#define _U_NOSSL_    _U_
 
 #endif  // HAVE_OPENSSL
 

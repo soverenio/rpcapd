@@ -37,7 +37,7 @@
 #define RPCAP_DEFAULT_NETPORT "2002" /* Default port on which the RPCAP daemon is waiting for connections. */
 /* Default port on which the client workstation is waiting for connections in case of active mode. */
 #define RPCAP_DEFAULT_NETPORT_ACTIVE "2003"
-#define RPCAP_DEFAULT_NETADDR ""	/* Default network address on which the RPCAP daemon binds to. */
+#define RPCAP_DEFAULT_NETADDR ""    /* Default network address on which the RPCAP daemon binds to. */
 
 /*
  * Minimum and maximum supported versions of the protocol.
@@ -88,8 +88,8 @@
  * comparison will always succeed.
  */
 #if RPCAP_MIN_VERSION == 0
-#define RPCAP_VERSION_IS_SUPPORTED(v)	\
-	((v) <= RPCAP_MAX_VERSION)
+#define RPCAP_VERSION_IS_SUPPORTED(v)    \
+    ((v) <= RPCAP_MAX_VERSION)
 #else
 #define RPCAP_VERSION_IS_SUPPORTED(v)	\
 	((v) >= RPCAP_MIN_VERSION && (v) <= RPCAP_MAX_VERSION)
@@ -135,12 +135,11 @@
  */
 
 /* Common header for all the RPCAP messages */
-struct rpcap_header
-{
-	uint8_t ver;		/* RPCAP version number */
-	uint8_t type;		/* RPCAP message type (error, findalldevs, ...) */
-	uint16_t value;		/* Message-dependent value (not always used) */
-	uint32_t plen;		/* Length of the payload of this RPCAP message */
+struct rpcap_header {
+	uint8_t ver;        /* RPCAP version number */
+	uint8_t type;        /* RPCAP message type (error, findalldevs, ...) */
+	uint16_t value;        /* Message-dependent value (not always used) */
+	uint32_t plen;        /* Length of the payload of this RPCAP message */
 };
 
 /*
@@ -150,39 +149,36 @@ struct rpcap_header
  *
  * Older servers don't provide this; they support only version 0.
  */
-struct rpcap_authreply
-{
-	uint8_t minvers;		/* Minimum version supported */
-	uint8_t maxvers;		/* Maximum version supported */
-	uint8_t pad[2];			/* Pad to 4-byte boundary **/
-	uint32_t byte_order_magic;	/* RPCAP_BYTE_ORDER_MAGIC, in server byte order */
+struct rpcap_authreply {
+	uint8_t minvers;        /* Minimum version supported */
+	uint8_t maxvers;        /* Maximum version supported */
+	uint8_t pad[2];            /* Pad to 4-byte boundary **/
+	uint32_t byte_order_magic;    /* RPCAP_BYTE_ORDER_MAGIC, in server byte order */
 };
 
 /*
  * Any resemblance between this and the pcap file magic number
  * is purely coincidental, trust me.
  */
-#define RPCAP_BYTE_ORDER_MAGIC		0xa1b2c3d4U
-#define RPCAP_BYTE_ORDER_MAGIC_SWAPPED	0xd4c3b2a1U
+#define RPCAP_BYTE_ORDER_MAGIC        0xa1b2c3d4U
+#define RPCAP_BYTE_ORDER_MAGIC_SWAPPED    0xd4c3b2a1U
 
 /*
  * Older version of authentication reply, without byte order indication
  * and padding.
  */
-struct rpcap_authreply_old
-{
-	uint8_t minvers;	/* Minimum version supported */
-	uint8_t maxvers;	/* Maximum version supported */
+struct rpcap_authreply_old {
+	uint8_t minvers;    /* Minimum version supported */
+	uint8_t maxvers;    /* Maximum version supported */
 };
 
 /* Format of the message for the interface description (findalldevs command) */
-struct rpcap_findalldevs_if
-{
-	uint16_t namelen;	/* Length of the interface name */
-	uint16_t desclen;	/* Length of the interface description */
-	uint32_t flags;		/* Interface flags */
-	uint16_t naddr;		/* Number of addresses */
-	uint16_t dummy;		/* Must be zero */
+struct rpcap_findalldevs_if {
+	uint16_t namelen;    /* Length of the interface name */
+	uint16_t desclen;    /* Length of the interface description */
+	uint32_t flags;        /* Interface flags */
+	uint16_t naddr;        /* Number of addresses */
+	uint16_t dummy;        /* Must be zero */
 };
 
 /*
@@ -227,44 +223,40 @@ struct rpcap_findalldevs_if
  * try to make what goes over the wire look like what comes
  * from a Windows server.)
  */
-struct rpcap_sockaddr
-{
-	uint16_t	family;		/* Address family */
-	char		data[128-2];	/* Data */
+struct rpcap_sockaddr {
+	uint16_t family;        /* Address family */
+	char data[128 - 2];    /* Data */
 };
 
 /*
  * Format of an IPv4 address as sent over the wire.
  */
-#define RPCAP_AF_INET	2		/* Value on all OSes */
-struct rpcap_sockaddr_in
-{
-	uint16_t family;	/* Address family */
-	uint16_t port;		/* Port number */
-	uint32_t addr;		/* IPv4 address */
-	uint8_t	 zero[8];	/* Padding */
+#define RPCAP_AF_INET    2        /* Value on all OSes */
+struct rpcap_sockaddr_in {
+	uint16_t family;    /* Address family */
+	uint16_t port;        /* Port number */
+	uint32_t addr;        /* IPv4 address */
+	uint8_t zero[8];    /* Padding */
 };
 
 /*
  * Format of an IPv6 address as sent over the wire.
  */
-#define RPCAP_AF_INET6	23		/* Value on Windows */
-struct rpcap_sockaddr_in6
-{
-	uint16_t family;		/* Address family */
-	uint16_t port;		/* Port number */
-	uint32_t flowinfo;	/* IPv6 flow information */
-	uint8_t  addr[16];	/* IPv6 address */
-	uint32_t scope_id;	/* Scope zone index */
+#define RPCAP_AF_INET6    23        /* Value on Windows */
+struct rpcap_sockaddr_in6 {
+	uint16_t family;        /* Address family */
+	uint16_t port;        /* Port number */
+	uint32_t flowinfo;    /* IPv6 flow information */
+	uint8_t addr[16];    /* IPv6 address */
+	uint32_t scope_id;    /* Scope zone index */
 };
 
 /* Format of the message for the address listing (findalldevs command) */
-struct rpcap_findalldevs_ifaddr
-{
-	struct rpcap_sockaddr addr;		/* Network address */
-	struct rpcap_sockaddr netmask;		/* Netmask for that address */
-	struct rpcap_sockaddr broadaddr;	/* Broadcast address for that address */
-	struct rpcap_sockaddr dstaddr;		/* P2P destination address for that address */
+struct rpcap_findalldevs_ifaddr {
+	struct rpcap_sockaddr addr;        /* Network address */
+	struct rpcap_sockaddr netmask;        /* Netmask for that address */
+	struct rpcap_sockaddr broadaddr;    /* Broadcast address for that address */
+	struct rpcap_sockaddr dstaddr;        /* P2P destination address for that address */
 };
 
 /*
@@ -272,27 +264,24 @@ struct rpcap_findalldevs_ifaddr
  *
  * This structure transfers over the network some of the values useful on the client side.
  */
-struct rpcap_openreply
-{
-	int32_t	linktype;	/* Link type */
-	int32_t	tzoff;		/* Timezone offset - not used by newer clients */
+struct rpcap_openreply {
+	int32_t linktype;    /* Link type */
+	int32_t tzoff;        /* Timezone offset - not used by newer clients */
 };
 
 /* Format of the message that starts a remote capture (startcap command) */
-struct rpcap_startcapreq
-{
-	uint32_t snaplen;	/* Length of the snapshot (number of bytes to capture for each packet) */
-	uint32_t read_timeout;	/* Read timeout in milliseconds */
-	uint16_t flags;		/* Flags (see RPCAP_STARTCAPREQ_FLAG_xxx) */
-	uint16_t portdata;	/* Network port on which the client is waiting at (if 'serveropen') */
+struct rpcap_startcapreq {
+	uint32_t snaplen;    /* Length of the snapshot (number of bytes to capture for each packet) */
+	uint32_t read_timeout;    /* Read timeout in milliseconds */
+	uint16_t flags;        /* Flags (see RPCAP_STARTCAPREQ_FLAG_xxx) */
+	uint16_t portdata;    /* Network port on which the client is waiting at (if 'serveropen') */
 };
 
 /* Format of the reply message that devoted to start a remote capture (startcap reply command) */
-struct rpcap_startcapreply
-{
-	int32_t	 bufsize;	/* Size of the user buffer allocated by WinPcap; it can be different from the one we chose */
-	uint16_t portdata;	/* Network port on which the server is waiting at (passive mode only) */
-	uint16_t dummy;		/* Must be zero */
+struct rpcap_startcapreply {
+	int32_t bufsize;    /* Size of the user buffer allocated by WinPcap; it can be different from the one we chose */
+	uint16_t portdata;    /* Network port on which the server is waiting at (passive mode only) */
+	uint16_t dummy;        /* Must be zero */
 };
 
 /*
@@ -301,61 +290,55 @@ struct rpcap_startcapreply
  * This message requires the general header as well, since we want to be able to exchange
  * more information across the network in the future (for example statistics, and kind like that).
  */
-struct rpcap_pkthdr
-{
+struct rpcap_pkthdr {
 	/*
 	 * This protocol needs to be updated with a new version before
 	 * 2038-01-19 03:14:07 UTC.
 	 */
-	uint32_t timestamp_sec;		/* 'struct timeval' compatible, it represents the 'tv_sec' field */
-	uint32_t timestamp_usec;	/* 'struct timeval' compatible, it represents the 'tv_usec' field */
-	uint32_t caplen;		/* Length of portion present in the capture */
-	uint32_t len;			/* Real length of this packet (off wire) */
-	uint32_t npkt;			/* Ordinal number of the packet (i.e. the first one captured has '1', the second one '2', etc) */
+	uint32_t timestamp_sec;        /* 'struct timeval' compatible, it represents the 'tv_sec' field */
+	uint32_t timestamp_usec;    /* 'struct timeval' compatible, it represents the 'tv_usec' field */
+	uint32_t caplen;        /* Length of portion present in the capture */
+	uint32_t len;            /* Real length of this packet (off wire) */
+	uint32_t npkt;            /* Ordinal number of the packet (i.e. the first one captured has '1', the second one '2', etc) */
 };
 
 /* General header used for the pcap_setfilter() command; keeps just the number of BPF instructions */
-struct rpcap_filter
-{
-	uint16_t filtertype;	/* type of the filter transferred (BPF instructions, ...) */
-	uint16_t dummy;		/* Must be zero */
-	uint32_t nitems;	/* Number of items contained into the filter (e.g. BPF instructions for BPF filters) */
+struct rpcap_filter {
+	uint16_t filtertype;    /* type of the filter transferred (BPF instructions, ...) */
+	uint16_t dummy;        /* Must be zero */
+	uint32_t nitems;    /* Number of items contained into the filter (e.g. BPF instructions for BPF filters) */
 };
 
 /* Structure that keeps a single BPF instruction; it is repeated 'ninsn' times according to the 'rpcap_filterbpf' header */
-struct rpcap_filterbpf_insn
-{
-	uint16_t	code;	/* opcode of the instruction */
-	uint8_t		jt;	/* relative offset to jump to in case of 'true' */
-	uint8_t		jf;	/* relative offset to jump to in case of 'false' */
-	int32_t		k;	/* instruction-dependent value */
+struct rpcap_filterbpf_insn {
+	uint16_t code;    /* opcode of the instruction */
+	uint8_t jt;    /* relative offset to jump to in case of 'true' */
+	uint8_t jf;    /* relative offset to jump to in case of 'false' */
+	int32_t k;    /* instruction-dependent value */
 };
 
 /* Structure that keeps the data required for the authentication on the remote host */
-struct rpcap_auth
-{
-	uint16_t type;	/* Authentication type */
-	uint16_t dummy;	/* Must be zero */
-	uint16_t slen1;	/* Length of the first authentication item (e.g. username) */
-	uint16_t slen2;	/* Length of the second authentication item (e.g. password) */
+struct rpcap_auth {
+	uint16_t type;    /* Authentication type */
+	uint16_t dummy;    /* Must be zero */
+	uint16_t slen1;    /* Length of the first authentication item (e.g. username) */
+	uint16_t slen2;    /* Length of the second authentication item (e.g. password) */
 };
 
 /* Structure that keeps the statistics about the number of packets captured, dropped, etc. */
-struct rpcap_stats
-{
-	uint32_t ifrecv;	/* Packets received by the kernel filter (i.e. pcap_stats.ps_recv) */
-	uint32_t ifdrop;	/* Packets dropped by the network interface (e.g. not enough buffers) (i.e. pcap_stats.ps_ifdrop) */
-	uint32_t krnldrop;	/* Packets dropped by the kernel filter (i.e. pcap_stats.ps_drop) */
-	uint32_t svrcapt;	/* Packets captured by the RPCAP daemon and sent on the network */
+struct rpcap_stats {
+	uint32_t ifrecv;    /* Packets received by the kernel filter (i.e. pcap_stats.ps_recv) */
+	uint32_t ifdrop;    /* Packets dropped by the network interface (e.g. not enough buffers) (i.e. pcap_stats.ps_ifdrop) */
+	uint32_t krnldrop;    /* Packets dropped by the kernel filter (i.e. pcap_stats.ps_drop) */
+	uint32_t svrcapt;    /* Packets captured by the RPCAP daemon and sent on the network */
 };
 
 /* Structure that is needed to set sampling parameters */
-struct rpcap_sampling
-{
-	uint8_t  method;	/* Sampling method */
-	uint8_t  dummy1;	/* Must be zero */
-	uint16_t dummy2;	/* Must be zero */
-	uint32_t value;		/* Parameter related to the sampling method */
+struct rpcap_sampling {
+	uint8_t method;    /* Sampling method */
+	uint8_t dummy1;    /* Must be zero */
+	uint16_t dummy2;    /* Must be zero */
+	uint32_t value;        /* Parameter related to the sampling method */
 };
 
 /*
@@ -364,36 +347,36 @@ struct rpcap_sampling
  * These values are used in messages sent over the network, and MUST
  * not be changed.
  */
-#define RPCAP_MSG_IS_REPLY		0x080	/* Flag indicating a reply */
+#define RPCAP_MSG_IS_REPLY        0x080    /* Flag indicating a reply */
 
-#define RPCAP_MSG_ERROR			0x01	/* Message that keeps an error notification */
-#define RPCAP_MSG_FINDALLIF_REQ		0x02	/* Request to list all the remote interfaces */
-#define RPCAP_MSG_OPEN_REQ		0x03	/* Request to open a remote device */
-#define RPCAP_MSG_STARTCAP_REQ		0x04	/* Request to start a capture on a remote device */
-#define RPCAP_MSG_UPDATEFILTER_REQ	0x05	/* Send a compiled filter into the remote device */
-#define RPCAP_MSG_CLOSE			0x06	/* Close the connection with the remote peer */
-#define RPCAP_MSG_PACKET		0x07	/* This is a 'data' message, which carries a network packet */
-#define RPCAP_MSG_AUTH_REQ		0x08	/* Message that keeps the authentication parameters */
-#define RPCAP_MSG_STATS_REQ		0x09	/* It requires to have network statistics */
-#define RPCAP_MSG_ENDCAP_REQ		0x0A	/* Stops the current capture, keeping the device open */
-#define RPCAP_MSG_SETSAMPLING_REQ	0x0B	/* Set sampling parameters */
+#define RPCAP_MSG_ERROR            0x01    /* Message that keeps an error notification */
+#define RPCAP_MSG_FINDALLIF_REQ        0x02    /* Request to list all the remote interfaces */
+#define RPCAP_MSG_OPEN_REQ        0x03    /* Request to open a remote device */
+#define RPCAP_MSG_STARTCAP_REQ        0x04    /* Request to start a capture on a remote device */
+#define RPCAP_MSG_UPDATEFILTER_REQ    0x05    /* Send a compiled filter into the remote device */
+#define RPCAP_MSG_CLOSE            0x06    /* Close the connection with the remote peer */
+#define RPCAP_MSG_PACKET        0x07    /* This is a 'data' message, which carries a network packet */
+#define RPCAP_MSG_AUTH_REQ        0x08    /* Message that keeps the authentication parameters */
+#define RPCAP_MSG_STATS_REQ        0x09    /* It requires to have network statistics */
+#define RPCAP_MSG_ENDCAP_REQ        0x0A    /* Stops the current capture, keeping the device open */
+#define RPCAP_MSG_SETSAMPLING_REQ    0x0B    /* Set sampling parameters */
 
-#define RPCAP_MSG_FINDALLIF_REPLY	(RPCAP_MSG_FINDALLIF_REQ | RPCAP_MSG_IS_REPLY)		/* Keeps the list of all the remote interfaces */
-#define RPCAP_MSG_OPEN_REPLY		(RPCAP_MSG_OPEN_REQ | RPCAP_MSG_IS_REPLY)		/* The remote device has been opened correctly */
-#define RPCAP_MSG_STARTCAP_REPLY	(RPCAP_MSG_STARTCAP_REQ | RPCAP_MSG_IS_REPLY)		/* The capture is starting correctly */
-#define RPCAP_MSG_UPDATEFILTER_REPLY	(RPCAP_MSG_UPDATEFILTER_REQ | RPCAP_MSG_IS_REPLY)	/* The filter has been applied correctly on the remote device */
-#define RPCAP_MSG_AUTH_REPLY		(RPCAP_MSG_AUTH_REQ | RPCAP_MSG_IS_REPLY)		/* Sends a message that says 'ok, authorization successful' */
-#define RPCAP_MSG_STATS_REPLY		(RPCAP_MSG_STATS_REQ | RPCAP_MSG_IS_REPLY)		/* Message that keeps the network statistics */
-#define RPCAP_MSG_ENDCAP_REPLY		(RPCAP_MSG_ENDCAP_REQ | RPCAP_MSG_IS_REPLY)		/* Confirms that the capture stopped successfully */
-#define RPCAP_MSG_SETSAMPLING_REPLY	(RPCAP_MSG_SETSAMPLING_REQ | RPCAP_MSG_IS_REPLY)		/* Confirms that the capture stopped successfully */
+#define RPCAP_MSG_FINDALLIF_REPLY    (RPCAP_MSG_FINDALLIF_REQ | RPCAP_MSG_IS_REPLY)        /* Keeps the list of all the remote interfaces */
+#define RPCAP_MSG_OPEN_REPLY        (RPCAP_MSG_OPEN_REQ | RPCAP_MSG_IS_REPLY)        /* The remote device has been opened correctly */
+#define RPCAP_MSG_STARTCAP_REPLY    (RPCAP_MSG_STARTCAP_REQ | RPCAP_MSG_IS_REPLY)        /* The capture is starting correctly */
+#define RPCAP_MSG_UPDATEFILTER_REPLY    (RPCAP_MSG_UPDATEFILTER_REQ | RPCAP_MSG_IS_REPLY)    /* The filter has been applied correctly on the remote device */
+#define RPCAP_MSG_AUTH_REPLY        (RPCAP_MSG_AUTH_REQ | RPCAP_MSG_IS_REPLY)        /* Sends a message that says 'ok, authorization successful' */
+#define RPCAP_MSG_STATS_REPLY        (RPCAP_MSG_STATS_REQ | RPCAP_MSG_IS_REPLY)        /* Message that keeps the network statistics */
+#define RPCAP_MSG_ENDCAP_REPLY        (RPCAP_MSG_ENDCAP_REQ | RPCAP_MSG_IS_REPLY)        /* Confirms that the capture stopped successfully */
+#define RPCAP_MSG_SETSAMPLING_REPLY    (RPCAP_MSG_SETSAMPLING_REQ | RPCAP_MSG_IS_REPLY)        /* Confirms that the capture stopped successfully */
 
-#define RPCAP_STARTCAPREQ_FLAG_PROMISC		0x00000001	/* Enables promiscuous mode (default: disabled) */
-#define RPCAP_STARTCAPREQ_FLAG_DGRAM		0x00000002	/* Use a datagram (i.e. UDP) connection for the data stream (default: use TCP)*/
-#define RPCAP_STARTCAPREQ_FLAG_SERVEROPEN	0x00000004	/* The server has to open the data connection toward the client */
-#define RPCAP_STARTCAPREQ_FLAG_INBOUND		0x00000008	/* Capture only inbound packets (take care: the flag has no effect with promiscuous enabled) */
-#define RPCAP_STARTCAPREQ_FLAG_OUTBOUND		0x00000010	/* Capture only outbound packets (take care: the flag has no effect with promiscuous enabled) */
+#define RPCAP_STARTCAPREQ_FLAG_PROMISC        0x00000001    /* Enables promiscuous mode (default: disabled) */
+#define RPCAP_STARTCAPREQ_FLAG_DGRAM        0x00000002    /* Use a datagram (i.e. UDP) connection for the data stream (default: use TCP)*/
+#define RPCAP_STARTCAPREQ_FLAG_SERVEROPEN    0x00000004    /* The server has to open the data connection toward the client */
+#define RPCAP_STARTCAPREQ_FLAG_INBOUND        0x00000008    /* Capture only inbound packets (take care: the flag has no effect with promiscuous enabled) */
+#define RPCAP_STARTCAPREQ_FLAG_OUTBOUND        0x00000010    /* Capture only outbound packets (take care: the flag has no effect with promiscuous enabled) */
 
-#define RPCAP_UPDATEFILTER_BPF 1			/* This code tells us that the filter is encoded with the BPF/NPF syntax */
+#define RPCAP_UPDATEFILTER_BPF 1            /* This code tells us that the filter is encoded with the BPF/NPF syntax */
 
 /*
  * Network error codes.
@@ -401,26 +384,26 @@ struct rpcap_sampling
  * These values are used in messages sent over the network, and MUST
  * not be changed.
  */
-#define PCAP_ERR_NETW			1	/* Network error */
-#define PCAP_ERR_INITTIMEOUT		2	/* The RPCAP initial timeout has expired */
-#define PCAP_ERR_AUTH			3	/* Generic authentication error */
-#define PCAP_ERR_FINDALLIF		4	/* Generic findalldevs error */
-#define PCAP_ERR_NOREMOTEIF		5	/* The findalldevs was ok, but the remote end had no interfaces to list */
-#define PCAP_ERR_OPEN			6	/* Generic pcap_open error */
-#define PCAP_ERR_UPDATEFILTER		7	/* Generic updatefilter error */
-#define PCAP_ERR_GETSTATS		8	/* Generic pcap_stats error */
-#define PCAP_ERR_READEX			9	/* Generic pcap_next_ex error */
-#define PCAP_ERR_HOSTNOAUTH		10	/* The host is not authorized to connect to this server */
-#define PCAP_ERR_REMOTEACCEPT		11	/* Generic pcap_remoteaccept error */
-#define PCAP_ERR_STARTCAPTURE		12	/* Generic pcap_startcapture error */
-#define PCAP_ERR_ENDCAPTURE		13	/* Generic pcap_endcapture error */
-#define PCAP_ERR_RUNTIMETIMEOUT		14	/* The RPCAP run-time timeout has expired */
-#define PCAP_ERR_SETSAMPLING		15	/* Error during the settings of sampling parameters */
-#define PCAP_ERR_WRONGMSG		16	/* The other end endpoint sent a message which has not been recognized */
-#define PCAP_ERR_WRONGVER		17	/* The other end endpoint has a version number that is not compatible with our */
-#define PCAP_ERR_AUTH_FAILED		18	/* The user couldn't be authenticated */
-#define PCAP_ERR_TLS_REQUIRED		19	/* The server requires TLS to connect */
-#define PCAP_ERR_AUTH_TYPE_NOTSUP	20	/* The authentication type isn't supported */
+#define PCAP_ERR_NETW            1    /* Network error */
+#define PCAP_ERR_INITTIMEOUT        2    /* The RPCAP initial timeout has expired */
+#define PCAP_ERR_AUTH            3    /* Generic authentication error */
+#define PCAP_ERR_FINDALLIF        4    /* Generic findalldevs error */
+#define PCAP_ERR_NOREMOTEIF        5    /* The findalldevs was ok, but the remote end had no interfaces to list */
+#define PCAP_ERR_OPEN            6    /* Generic pcap_open error */
+#define PCAP_ERR_UPDATEFILTER        7    /* Generic updatefilter error */
+#define PCAP_ERR_GETSTATS        8    /* Generic pcap_stats error */
+#define PCAP_ERR_READEX            9    /* Generic pcap_next_ex error */
+#define PCAP_ERR_HOSTNOAUTH        10    /* The host is not authorized to connect to this server */
+#define PCAP_ERR_REMOTEACCEPT        11    /* Generic pcap_remoteaccept error */
+#define PCAP_ERR_STARTCAPTURE        12    /* Generic pcap_startcapture error */
+#define PCAP_ERR_ENDCAPTURE        13    /* Generic pcap_endcapture error */
+#define PCAP_ERR_RUNTIMETIMEOUT        14    /* The RPCAP run-time timeout has expired */
+#define PCAP_ERR_SETSAMPLING        15    /* Error during the settings of sampling parameters */
+#define PCAP_ERR_WRONGMSG        16    /* The other end endpoint sent a message which has not been recognized */
+#define PCAP_ERR_WRONGVER        17    /* The other end endpoint has a version number that is not compatible with our */
+#define PCAP_ERR_AUTH_FAILED        18    /* The user couldn't be authenticated */
+#define PCAP_ERR_TLS_REQUIRED        19    /* The server requires TLS to connect */
+#define PCAP_ERR_AUTH_TYPE_NOTSUP    20    /* The authentication type isn't supported */
 
 /*
  * \brief Buffer used by socket functions to send-receive packets.
@@ -438,7 +421,9 @@ struct rpcap_sampling
 #include "sslutils.h"
 
 extern void rpcap_createhdr(struct rpcap_header *header, uint8_t ver, uint8_t type, uint16_t value, uint32_t length);
+
 extern const char *rpcap_msg_type_string(uint8_t type);
+
 extern int rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, uint16_t errcode, const char *error, char *errbuf);
 
 #endif

@@ -33,8 +33,7 @@
  * If retval >= dsize, truncation occurred.
  */
 size_t
-pcap_strlcat(char * restrict dst, const char * restrict src, size_t dsize)
-{
+pcap_strlcat(char *restrict dst, const char *restrict src, size_t dsize) {
 	const char *odst = dst;
 	const char *osrc = src;
 	size_t n = dsize;
@@ -47,7 +46,7 @@ pcap_strlcat(char * restrict dst, const char * restrict src, size_t dsize)
 	n = dsize - dlen;
 
 	if (n-- == 0)
-		return(dlen + strlen(src));
+		return (dlen + strlen(src));
 	while (*src != '\0') {
 		if (n != 0) {
 			*dst++ = *src;
@@ -57,5 +56,5 @@ pcap_strlcat(char * restrict dst, const char * restrict src, size_t dsize)
 	}
 	*dst = '\0';
 
-	return(dlen + (src - osrc));	/* count does not include NUL */
+	return (dlen + (src - osrc));    /* count does not include NUL */
 }

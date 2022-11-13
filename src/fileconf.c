@@ -40,11 +40,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
-#include <pcap.h>		// for PCAP_ERRBUF_SIZE
+#include <pcap.h>        // for PCAP_ERRBUF_SIZE
 
 #include "portability.h"
 #include "rpcapd.h"
-#include "config_params.h"	// configuration file parameters
+#include "config_params.h"    // configuration file parameters
 #include "fileconf.h"
 #include "rpcap-protocol.h"
 #include "log.h"
@@ -52,9 +52,9 @@
 //
 // Parameter names.
 //
-#define PARAM_ACTIVECLIENT	"ActiveClient"
-#define PARAM_PASSIVECLIENT	"PassiveClient"
-#define PARAM_NULLAUTHPERMIT	"NullAuthPermit"
+#define PARAM_ACTIVECLIENT    "ActiveClient"
+#define PARAM_PASSIVECLIENT    "PassiveClient"
+#define PARAM_NULLAUTHPERMIT    "NullAuthPermit"
 
 static char *skipws(char *ptr);
 
@@ -64,17 +64,15 @@ static char *skipws(char *ptr);
  * be negative.
  */
 #define FILECONF_ISALPHA(c) \
-	(((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
+    (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
 #define FILECONF_ISALNUM(c) \
-	(FILECONF_ISALPHA(c) || ((c) >= '0' && (c) <= '9'))
+    (FILECONF_ISALPHA(c) || ((c) >= '0' && (c) <= '9'))
 
-void fileconf_read(void)
-{
+void fileconf_read(void) {
 	FILE *fp;
 	unsigned int num_active_clients;
 
-	if ((fp = fopen(loadfile, "r")) != NULL)
-	{
+	if ((fp = fopen(loadfile, "r")) != NULL) {
 		char line[MAX_LINE + 1];
 		unsigned int lineno;
 
@@ -82,8 +80,7 @@ void fileconf_read(void)
 		num_active_clients = 0;
 		lineno = 0;
 
-		while (fgets(line, MAX_LINE, fp) != NULL)
-		{
+		while (fgets(line, MAX_LINE, fp) != NULL) {
 			size_t linelen;
 			char *ptr;
 			char *param;
@@ -93,8 +90,7 @@ void fileconf_read(void)
 			lineno++;
 
 			linelen = strlen(line);
-			if (line[linelen - 1] != '\n')
-			{
+			if (line[linelen - 1] != '\n') {
 				int c;
 
 				//
@@ -104,14 +100,13 @@ void fileconf_read(void)
 				// former.
 				//
 				rpcapd_log(LOGPRIO_ERROR,
-				    "%s, line %u is longer than %u characters",
-				    loadfile, lineno, MAX_LINE);
+						   "%s, line %u is longer than %u characters",
+						   loadfile, lineno, MAX_LINE);
 
 				//
 				// Eat characters until we get an NL.
 				//
-				while ((c = getc(fp)) != '\n')
-				{
+				while ((c = getc(fp)) != '\n') {
 					if (c == EOF)
 						goto done;
 				}
@@ -127,8 +122,7 @@ void fileconf_read(void)
 			// Skip leading white space, if any.
 			//
 			ptr = skipws(ptr);
-			if (ptr == NULL)
-			{
+			if (ptr == NULL) {
 				// Blank line.
 				continue;
 			}
@@ -144,11 +138,10 @@ void fileconf_read(void)
 			// Is the next character alphabetic?  If not,
 			// this isn't a valid parameter name.
 			//
-			if (FILECONF_ISALPHA(*ptr))
-			{
+			if (FILECONF_ISALPHA(*ptr)) {
 				rpcapd_log(LOGPRIO_ERROR,
-				    "%s, line %u doesn't have a valid parameter name",
-				    loadfile, lineno);
+						   "%s, line %u doesn't have a valid parameter name",
+						   loadfile, lineno);
 				continue;
 			}
 
@@ -165,8 +158,7 @@ void fileconf_read(void)
 			// Skip over white space, if any.
 			//
 			ptr = skipws(ptr);
-			if (ptr == NULL || *ptr != '=')
-			{
+			if (ptr == NULL || *ptr != '=') {
 				//
 				// We hit the end of the line before
 				// finding a non-white space character,
@@ -176,8 +168,8 @@ void fileconf_read(void)
 				// this line.
 				//
 				rpcapd_log(LOGPRIO_ERROR,
-				    "%s, line %u has a parameter but no =",
-				    loadfile, lineno);
+						   "%s, line %u has a parameter but no =",
+						   loadfile, lineno);
 				continue;
 			}
 
@@ -191,14 +183,13 @@ void fileconf_read(void)
 			// Skip past any white space after the "=".
 			//
 			ptr = skipws(ptr);
-			if (ptr == NULL)
-			{
+			if (ptr == NULL) {
 				//
 				// The value is empty.
 				//
 				rpcapd_log(LOGPRIO_ERROR,
-				    "%s, line %u has a parameter but no value",
-				    loadfile, lineno);
+						   "%s, line %u has a parameter but no value",
+						   loadfile, lineno);
 				continue;
 			}
 
@@ -215,17 +206,16 @@ void fileconf_read(void)
 				// We can't have more than MAX_ACTIVE_LIST
 				// active clients.
 				//
-				if (num_active_clients >= MAX_ACTIVE_LIST)
-				{
+				if (num_active_clients >= MAX_ACTIVE_LIST) {
 					//
 					// Too many entries for the active
 					// client list.  Complain and
 					// ignore it.
 					//
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has an %s parameter, but we already have %u active clients",
-					    loadfile, lineno, PARAM_ACTIVECLIENT,
-					    MAX_ACTIVE_LIST);
+							   "%s, line %u has an %s parameter, but we already have %u active clients",
+							   loadfile, lineno, PARAM_ACTIVECLIENT,
+							   MAX_ACTIVE_LIST);
 					continue;
 				}
 
@@ -238,13 +228,11 @@ void fileconf_read(void)
 				//
 				address = ptr;
 				toklen = strcspn(ptr, RPCAP_HOSTLIST_SEP "#");
-				ptr += toklen;	// skip to the terminator
-				if (toklen == 0)
-				{
+				ptr += toklen;    // skip to the terminator
+				if (toklen == 0) {
 					if (*ptr == ' ' || *ptr == '\t' ||
-					    *ptr == '\r' || *ptr == '\n' ||
-					    *ptr == '#' || *ptr == '\0')
-					{
+						*ptr == '\r' || *ptr == '\n' ||
+						*ptr == '#' || *ptr == '\0') {
 						//
 						// The first character it saw
 						// was a whitespace character
@@ -254,11 +242,9 @@ void fileconf_read(void)
 						// no value.
 						//
 						rpcapd_log(LOGPRIO_ERROR,
-						    "%s, line %u has a parameter but no value",
-						    loadfile, lineno);
-					}
-					else
-					{
+								   "%s, line %u has a parameter but no value",
+								   loadfile, lineno);
+					} else {
 						//
 						// This means that the first
 						// character it saw was a
@@ -267,8 +253,8 @@ void fileconf_read(void)
 						// value, just a port.
 						//
 						rpcapd_log(LOGPRIO_ERROR,
-						    "%s, line %u has an %s parameter with a value containing no address",
-						    loadfile, lineno, PARAM_ACTIVECLIENT);
+								   "%s, line %u has an %s parameter with a value containing no address",
+								   loadfile, lineno, PARAM_ACTIVECLIENT);
 					}
 					continue;
 				}
@@ -284,15 +270,14 @@ void fileconf_read(void)
 				// separating character.
 				//
 				ptr = skipws(ptr);
-				if (ptr == NULL)
-				{
+				if (ptr == NULL) {
 					//
 					// The value is empty, so there's
 					// no port in the value.
 					//
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has an %s parameter with a value containing no port",
-					    loadfile, lineno, PARAM_ACTIVECLIENT);
+							   "%s, line %u has an %s parameter with a value containing no port",
+							   loadfile, lineno, PARAM_ACTIVECLIENT);
 					continue;
 				}
 
@@ -306,15 +291,14 @@ void fileconf_read(void)
 				port = ptr;
 				toklen = strcspn(ptr, " \t#\r\n");
 				ptr += toklen;
-				if (toklen == 0)
-				{
+				if (toklen == 0) {
 					//
 					// The value is empty, so there's
 					// no port in the value.
 					//
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has an %s parameter with a value containing no port",
-					    loadfile, lineno, PARAM_ACTIVECLIENT);
+							   "%s, line %u has an %s parameter with a value containing no port",
+							   loadfile, lineno, PARAM_ACTIVECLIENT);
 					continue;
 				}
 
@@ -323,38 +307,37 @@ void fileconf_read(void)
 				// it.
 				//
 				*ptr++ = '\0';
-				result = pcap_strlcpy(activelist[num_active_clients].address, address, sizeof(activelist[num_active_clients].address));
-				if (result >= sizeof(activelist[num_active_clients].address))
-				{
+				result = pcap_strlcpy(activelist[num_active_clients].address, address,
+									  sizeof(activelist[num_active_clients].address));
+				if (result >= sizeof(activelist[num_active_clients].address)) {
 					//
 					// It didn't fit.
 					//
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has an %s parameter with an address with more than %u characters",
-					    loadfile, lineno, PARAM_ACTIVECLIENT,
-					    (unsigned int)(sizeof(activelist[num_active_clients].address) - 1));
+							   "%s, line %u has an %s parameter with an address with more than %u characters",
+							   loadfile, lineno, PARAM_ACTIVECLIENT,
+							   (unsigned int) (sizeof(activelist[num_active_clients].address) - 1));
 					continue;
 				}
 				if (strcmp(port, "DEFAULT") == 0) // the user choose a custom port
-					result = pcap_strlcpy(activelist[num_active_clients].port, RPCAP_DEFAULT_NETPORT_ACTIVE, sizeof(activelist[num_active_clients].port));
+					result = pcap_strlcpy(activelist[num_active_clients].port, RPCAP_DEFAULT_NETPORT_ACTIVE,
+										  sizeof(activelist[num_active_clients].port));
 				else
-					result = pcap_strlcpy(activelist[num_active_clients].port, port, sizeof(activelist[num_active_clients].port));
-				if (result >= sizeof(activelist[num_active_clients].address))
-				{
+					result = pcap_strlcpy(activelist[num_active_clients].port, port,
+										  sizeof(activelist[num_active_clients].port));
+				if (result >= sizeof(activelist[num_active_clients].address)) {
 					//
 					// It didn't fit.
 					//
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has an %s parameter with an port with more than %u characters",
-					    loadfile, lineno, PARAM_ACTIVECLIENT,
-					    (unsigned int)(sizeof(activelist[num_active_clients].port) - 1));
+							   "%s, line %u has an %s parameter with an port with more than %u characters",
+							   loadfile, lineno, PARAM_ACTIVECLIENT,
+							   (unsigned int) (sizeof(activelist[num_active_clients].port) - 1));
 					continue;
 				}
 
 				num_active_clients++;
-			}
-			else if (strcmp(param, PARAM_PASSIVECLIENT) == 0)
-			{
+			} else if (strcmp(param, PARAM_PASSIVECLIENT) == 0) {
 				char *eos;
 				char *host;
 
@@ -367,8 +350,7 @@ void fileconf_read(void)
 				//
 				host = ptr;
 				toklen = strcspn(ptr, " \t#\r\n");
-				if (toklen == 0)
-				{
+				if (toklen == 0) {
 					//
 					// The first character it saw
 					// was a whitespace character
@@ -377,8 +359,8 @@ void fileconf_read(void)
 					// no value.
 					//
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has a parameter but no value",
-					    loadfile, lineno);
+							   "%s, line %u has a parameter but no value",
+							   loadfile, lineno);
 					continue;
 				}
 				ptr += toklen;
@@ -392,15 +374,13 @@ void fileconf_read(void)
 				// copied host name.
 				//
 				eos = hostlist + strlen(hostlist);
-				if (eos != hostlist)
-				{
+				if (eos != hostlist) {
 					//
 					// The list is not empty, so prepend
 					// a comma before adding this host.
 					//
 					result = pcap_strlcat(hostlist, ",", sizeof(hostlist));
-					if (result >= sizeof(hostlist))
-					{
+					if (result >= sizeof(hostlist)) {
 						//
 						// It didn't fit.  Discard
 						// the comma (which wasn't
@@ -409,27 +389,24 @@ void fileconf_read(void)
 						//
 						*eos = '\0';
 						rpcapd_log(LOGPRIO_ERROR,
-						    "%s, line %u has a %s parameter with a host name that doesn't fit",
-						    loadfile, lineno, PARAM_PASSIVECLIENT);
+								   "%s, line %u has a %s parameter with a host name that doesn't fit",
+								   loadfile, lineno, PARAM_PASSIVECLIENT);
 						continue;
 					}
 				}
 				result = pcap_strlcat(hostlist, host, sizeof(hostlist));
-				if (result >= sizeof(hostlist))
-				{
+				if (result >= sizeof(hostlist)) {
 					//
 					// It didn't fit.  Discard the comma,
 					// complain, and ignore this line.
 					//
 					*eos = '\0';
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has a %s parameter with a host name that doesn't fit",
-					    loadfile, lineno, PARAM_PASSIVECLIENT);
+							   "%s, line %u has a %s parameter with a host name that doesn't fit",
+							   loadfile, lineno, PARAM_PASSIVECLIENT);
 					continue;
 				}
-			}
-			else if (strcmp(param, PARAM_NULLAUTHPERMIT) == 0)
-			{
+			} else if (strcmp(param, PARAM_NULLAUTHPERMIT) == 0) {
 				char *setting;
 
 				//
@@ -442,8 +419,7 @@ void fileconf_read(void)
 				setting = ptr;
 				toklen = strcspn(ptr, " \t#\r\n");
 				ptr += toklen;
-				if (toklen == 0)
-				{
+				if (toklen == 0) {
 					//
 					// The first character it saw
 					// was a whitespace character
@@ -452,8 +428,8 @@ void fileconf_read(void)
 					// no value.
 					//
 					rpcapd_log(LOGPRIO_ERROR,
-					    "%s, line %u has a parameter but no value",
-					    loadfile, lineno);
+							   "%s, line %u has a parameter but no value",
+							   loadfile, lineno);
 					continue;
 				}
 				*ptr++ = '\0';
@@ -466,20 +442,17 @@ void fileconf_read(void)
 					nullAuthAllowed = 1;
 				else
 					nullAuthAllowed = 0;
-			}
-			else
-			{
+			} else {
 				rpcapd_log(LOGPRIO_ERROR,
-				    "%s, line %u has an unknown parameter %s",
-				    loadfile, lineno, param);
+						   "%s, line %u has an unknown parameter %s",
+						   loadfile, lineno, param);
 				continue;
 			}
 		}
 
 done:
 		// clear the remaining fields of the active list
-		for (int i = num_active_clients; i < MAX_ACTIVE_LIST; i++)
-		{
+		for (int i = num_active_clients; i < MAX_ACTIVE_LIST; i++) {
 			activelist[i].address[0] = 0;
 			activelist[i].port[0] = 0;
 			num_active_clients++;
@@ -490,13 +463,11 @@ done:
 	}
 }
 
-int fileconf_save(const char *savefile)
-{
+int fileconf_save(const char *savefile) {
 	FILE *fp;
 
-	if ((fp = fopen(savefile, "w")) != NULL)
-	{
-		char *token; /*, *port;*/					// temp, needed to separate items into the hostlist
+	if ((fp = fopen(savefile, "w")) != NULL) {
+		char *token; /*, *port;*/                    // temp, needed to separate items into the hostlist
 		char temphostlist[MAX_HOST_LIST + 1];
 		int i = 0;
 		char *lasts;
@@ -507,11 +478,10 @@ int fileconf_save(const char *savefile)
 		fprintf(fp, "# Hosts which are allowed to connect to this server (passive mode)\n");
 		fprintf(fp, "# Format: PassiveClient = <name or address>\n\n");
 
-		pcap_strlcpy(temphostlist, hostlist, sizeof (temphostlist));
+		pcap_strlcpy(temphostlist, hostlist, sizeof(temphostlist));
 
 		token = pcap_strtok_r(temphostlist, RPCAP_HOSTLIST_SEP, &lasts);
-		while(token != NULL)
-		{
+		while (token != NULL) {
 			fprintf(fp, "%s = %s\n", PARAM_PASSIVECLIENT, token);
 			token = pcap_strtok_r(NULL, RPCAP_HOSTLIST_SEP, &lasts);
 		}
@@ -523,10 +493,9 @@ int fileconf_save(const char *savefile)
 		fprintf(fp, "# Format: ActiveClient = <name or address>, <port | DEFAULT>\n\n");
 
 
-		while ((i < MAX_ACTIVE_LIST) && (activelist[i].address[0] != 0))
-		{
+		while ((i < MAX_ACTIVE_LIST) && (activelist[i].address[0] != 0)) {
 			fprintf(fp, "%s = %s, %s\n", PARAM_ACTIVECLIENT,
-			    activelist[i].address, activelist[i].port);
+					activelist[i].address, activelist[i].port);
 			i++;
 		}
 
@@ -535,13 +504,11 @@ int fileconf_save(const char *savefile)
 		fprintf(fp, "# Permit NULL authentication: YES or NO\n\n");
 
 		fprintf(fp, "%s = %s\n", PARAM_NULLAUTHPERMIT,
-		    nullAuthAllowed ? "YES" : "NO");
+				nullAuthAllowed ? "YES" : "NO");
 
 		fclose(fp);
 		return 0;
-	}
-	else
-	{
+	} else {
 		return -1;
 	}
 
@@ -554,8 +521,7 @@ int fileconf_save(const char *savefile)
 // other than CR or LF with '\0', so that, if we're skipping white space
 // after a token, the token is null-terminated.
 //
-static char *skipws(char *ptr)
-{
+static char *skipws(char *ptr) {
 	while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r' || *ptr == '\n') {
 		if (*ptr == '\r' || *ptr == '\n')
 			return NULL;

@@ -53,32 +53,15 @@
 #include "ftmacros.h"
 
 #include <string.h>
-#include <errno.h>	/* for the errno variable */
-#include <stdio.h>	/* for the stderr file */
-#include <stdlib.h>	/* for malloc() and free() */
-#include <limits.h>	/* for INT_MAX */
+#include <errno.h>    /* for the errno variable */
+#include <stdio.h>    /* for the stderr file */
+#include <stdlib.h>    /* for malloc() and free() */
+#include <limits.h>    /* for INT_MAX */
 
 #include "pcap-int.h"
 
 #include "sockutils.h"
 #include "portability.h"
-
-#ifdef _WIN32
-  /*
-   * Winsock initialization.
-   *
-   * Ask for Winsock 2.2.
-   */
-  #define WINSOCK_MAJOR_VERSION 2
-  #define WINSOCK_MINOR_VERSION 2
-
-  static int sockcount = 0;	/*!< Variable that allows calling the WSAStartup() only one time */
-#endif
-
-/* Some minor differences between UNIX and Win32 */
-#ifdef _WIN32
-  #define SHUT_WR SD_SEND	/* The control code for shutdown() is different in Win32 */
-#endif
 
 /* Size of the buffer that has to keep error messages */
 #define SOCK_ERRBUF_SIZE 1024
@@ -87,24 +70,6 @@
 #define SOCKET_NO_NAME_AVAILABLE "No name available"
 #define SOCKET_NO_PORT_AVAILABLE "No port available"
 #define SOCKET_NAME_NULL_DAD "Null address (possibly DAD Phase)"
-
-/*
- * On UN*X, send() and recv() return ssize_t.
- *
- * On Windows, send() and recv() return an int.
- *
- *   With MSVC, there *is* no ssize_t.
- *
- *   With MinGW, there is an ssize_t type; it is either an int (32 bit)
- *   or a long long (64 bit).
- *
- * So, on Windows, if we don't have ssize_t defined, define it as an
- * int, so we can use it, on all platforms, as the type of variables
- * that hold the return values from send() and recv().
- */
-#if defined(_WIN32) && !defined(_SSIZE_T_DEFINED)
-typedef int ssize_t;
-#endif
 
 /****************************************************
  *                                                  *
@@ -143,13 +108,8 @@ static int fuzz_recv(char *bufp, int remaining) {
 }
 #endif
 
-int sock_geterrcode(void)
-{
-#ifdef _WIN32
-	return GetLastError();
-#else
+int sock_geterrcode(void) {
 	return errno;
-#endif
 }
 
 /*
@@ -157,23 +117,16 @@ int sock_geterrcode(void)
  * (Windows).
  */
 void sock_vfmterrmsg(char *errbuf, size_t errbuflen, int errcode,
-    const char *fmt, va_list ap)
-{
+					 const char *fmt, va_list ap) {
 	if (errbuf == NULL)
 		return;
 
-#ifdef _WIN32
-	pcap_vfmt_errmsg_for_win32_err(errbuf, errbuflen, errcode,
-	    fmt, ap);
-#else
 	pcap_vfmt_errmsg_for_errno(errbuf, errbuflen, errcode,
-	    fmt, ap);
-#endif
+							   fmt, ap);
 }
 
 void sock_fmterrmsg(char *errbuf, size_t errbuflen, int errcode,
-    const char *fmt, ...)
-{
+					const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -184,8 +137,7 @@ void sock_fmterrmsg(char *errbuf, size_t errbuflen, int errcode,
 /*
  * Format an error message for the last socket error.
  */
-void sock_geterrmsg(char *errbuf, size_t errbuflen, const char *fmt, ...)
-{
+void sock_geterrmsg(char *errbuf, size_t errbuflen, const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -202,104 +154,81 @@ void sock_geterrmsg(char *errbuf, size_t errbuflen, const char *fmt, ...)
  * family, and higher-rated errors should overwrit elower-rated errors.
  */
 typedef enum {
-	SOCK_CONNERR,		/* connection error */
-	SOCK_HOSTERR,		/* host error */
-	SOCK_NETERR,		/* network error */
-	SOCK_AFNOTSUPERR,	/* address family not supported */
-	SOCK_UNKNOWNERR,	/* unknown error */
-	SOCK_NOERR		/* no error */
+	SOCK_CONNERR,        /* connection error */
+	SOCK_HOSTERR,        /* host error */
+	SOCK_NETERR,        /* network error */
+	SOCK_AFNOTSUPERR,    /* address family not supported */
+	SOCK_UNKNOWNERR,    /* unknown error */
+	SOCK_NOERR        /* no error */
 } sock_errtype;
 
-static sock_errtype sock_geterrtype(int errcode)
-{
+static sock_errtype sock_geterrtype(int errcode) {
 	switch (errcode) {
 
-#ifdef _WIN32
-	case WSAECONNRESET:
-	case WSAECONNABORTED:
-	case WSAECONNREFUSED:
-#else
-	case ECONNRESET:
-	case ECONNABORTED:
-	case ECONNREFUSED:
-#endif
-		/*
-		 * Connection error; this means the problem is probably
-		 * that there's no server set up on the remote machine,
-		 * or that it is set up, but it's IPv4-only or IPv6-only
-		 * and we're trying the wrong address family.
-		 *
-		 * These overwrite all other errors, as they indicate
-		 * that, even if somethng else went wrong in another
-		 * attempt, this probably wouldn't work even if the
-		 * other problems were fixed.
-		 */
-		return (SOCK_CONNERR);
+		case ECONNRESET:
+		case ECONNABORTED:
+		case ECONNREFUSED:
+			/*
+			 * Connection error; this means the problem is probably
+			 * that there's no server set up on the remote machine,
+			 * or that it is set up, but it's IPv4-only or IPv6-only
+			 * and we're trying the wrong address family.
+			 *
+			 * These overwrite all other errors, as they indicate
+			 * that, even if somethng else went wrong in another
+			 * attempt, this probably wouldn't work even if the
+			 * other problems were fixed.
+			 */
+			return (SOCK_CONNERR);
 
-#ifdef _WIN32
-	case WSAENETUNREACH:
-	case WSAETIMEDOUT:
-	case WSAEHOSTDOWN:
-	case WSAEHOSTUNREACH:
-#else
-	case ENETUNREACH:
-	case ETIMEDOUT:
-	case EHOSTDOWN:
-	case EHOSTUNREACH:
-#endif
-		/*
-		 * Network errors that could be IPv4-specific, IPv6-
-		 * specific, or present with both.
-		 *
-		 * Don't overwrite connection errors, but overwrite
-		 * everything else.
-		 */
-		return (SOCK_HOSTERR);
+		case ENETUNREACH:
+		case ETIMEDOUT:
+		case EHOSTDOWN:
+		case EHOSTUNREACH:
+			/*
+			 * Network errors that could be IPv4-specific, IPv6-
+			 * specific, or present with both.
+			 *
+			 * Don't overwrite connection errors, but overwrite
+			 * everything else.
+			 */
+			return (SOCK_HOSTERR);
 
-#ifdef _WIN32
-	case WSAENETDOWN:
-	case WSAENETRESET:
-#else
-	case ENETDOWN:
-	case ENETRESET:
-#endif
-		/*
-		 * Network error; this means we don't know whether
-		 * there's a server set up on the remote machine,
-		 * and we don't have a reason to believe that IPv6
-		 * any worse or better than IPv4.
-		 *
-		 * These probably indicate a local failure, e.g.
-		 * an interface is down.
-		 *
-		 * Don't overwrite connection errors or host errors,
-		 * but overwrite everything else.
-		 */
-		return (SOCK_NETERR);
+		case ENETDOWN:
+		case ENETRESET:
+			/*
+			 * Network error; this means we don't know whether
+			 * there's a server set up on the remote machine,
+			 * and we don't have a reason to believe that IPv6
+			 * any worse or better than IPv4.
+			 *
+			 * These probably indicate a local failure, e.g.
+			 * an interface is down.
+			 *
+			 * Don't overwrite connection errors or host errors,
+			 * but overwrite everything else.
+			 */
+			return (SOCK_NETERR);
 
-#ifdef _WIN32
-	case WSAEAFNOSUPPORT:
-#else
-	case EAFNOSUPPORT:
-#endif
-		/*
-		 * "Address family not supported" probably means
-		 * "No soup^WIPv6 for you!".
-		 *
-		 * Don't overwrite connection errors, host errors, or
-		 * network errors (none of which we should get for this
-		 * address family if it's not supported), but overwrite
-		 * everything else.
-		 */
-		return (SOCK_AFNOTSUPERR);
+		case EAFNOSUPPORT:
+			/*
+			 * "Address family not supported" probably means
+			 * "No soup^WIPv6 for you!".
+			 *
+			 * Don't overwrite connection errors, host errors, or
+			 * network errors (none of which we should get for this
+			 * address family if it's not supported), but overwrite
+			 * everything else.
+			 */
+			return (SOCK_AFNOTSUPERR);
 
-	default:
-		/*
-		 * Anything else.
-		 *
-		 * Don't overwrite any errors.
-		 */
-		return (SOCK_UNKNOWNERR);
+		default:
+			/*
+			 * Anything else.
+			 *
+			 * Don't overwrite any errors.
+			 */
+			return (SOCK_UNKNOWNERR);
 	}
 }
 
@@ -322,37 +251,12 @@ static sock_errtype sock_geterrtype(int errcode)
  * \return '0' if everything is fine, '-1' if some errors occurred. The
  * error message is returned in the buffer pointed to by 'errbuf' variable.
  */
-#ifdef _WIN32
-int sock_init(char *errbuf, int errbuflen)
-{
-	if (sockcount == 0)
-	{
-		WSADATA wsaData;			/* helper variable needed to initialize Winsock */
-
-		if (WSAStartup(MAKEWORD(WINSOCK_MAJOR_VERSION,
-		    WINSOCK_MINOR_VERSION), &wsaData) != 0)
-		{
-			if (errbuf)
-				snprintf(errbuf, errbuflen, "Failed to initialize Winsock\n");
-
-			WSACleanup();
-
-			return -1;
-		}
-	}
-
-	sockcount++;
-	return 0;
-}
-#else
-int sock_init(char *errbuf _U_, int errbuflen _U_)
-{
+int sock_init(char *errbuf _U_, int errbuflen _U_) {
 	/*
 	 * Nothing to do on UN*Xes.
 	 */
 	return 0;
 }
-#endif
 
 /*
  * \brief This function cleans up the socket mechanism if we have no
@@ -363,14 +267,7 @@ int sock_init(char *errbuf _U_, int errbuflen _U_)
  *
  * \return No error values.
  */
-void sock_cleanup(void)
-{
-#ifdef _WIN32
-	sockcount--;
-
-	if (sockcount == 0)
-		WSACleanup();
-#endif
+void sock_cleanup(void) {
 }
 
 /*
@@ -378,16 +275,12 @@ void sock_cleanup(void)
  *
  * \return '0' if the address is multicast, '-1' if it is not.
  */
-static int sock_ismcastaddr(const struct sockaddr *saddr)
-{
-	if (saddr->sa_family == PF_INET)
-	{
+static int sock_ismcastaddr(const struct sockaddr *saddr) {
+	if (saddr->sa_family == PF_INET) {
 		struct sockaddr_in *saddr4 = (struct sockaddr_in *) saddr;
 		if (IN_MULTICAST(ntohl(saddr4->sin_addr.s_addr))) return 0;
 		else return -1;
-	}
-	else
-	{
+	} else {
 		struct sockaddr_in6 *saddr6 = (struct sockaddr_in6 *) saddr;
 		if (IN6_IS_ADDR_MULTICAST(&saddr6->sin6_addr)) return 0;
 		else return -1;
@@ -403,10 +296,9 @@ struct addr_status {
 /*
  * Sort by IPv4 address vs. IPv6 address.
  */
-static int compare_addrs_to_try_by_address_family(const void *a, const void *b)
-{
-	const struct addr_status *addr_a = (const struct addr_status *)a;
-	const struct addr_status *addr_b = (const struct addr_status *)b;
+static int compare_addrs_to_try_by_address_family(const void *a, const void *b) {
+	const struct addr_status *addr_a = (const struct addr_status *) a;
+	const struct addr_status *addr_b = (const struct addr_status *) b;
 
 	return addr_a->info->ai_family - addr_b->info->ai_family;
 }
@@ -415,15 +307,12 @@ static int compare_addrs_to_try_by_address_family(const void *a, const void *b)
  * Sort by error type and, within a given error type, by error code and,
  * within a given error code, by IPv4 address vs. IPv6 address.
  */
-static int compare_addrs_to_try_by_status(const void *a, const void *b)
-{
-	const struct addr_status *addr_a = (const struct addr_status *)a;
-	const struct addr_status *addr_b = (const struct addr_status *)b;
+static int compare_addrs_to_try_by_status(const void *a, const void *b) {
+	const struct addr_status *addr_a = (const struct addr_status *) a;
+	const struct addr_status *addr_b = (const struct addr_status *) b;
 
-	if (addr_a->errtype == addr_b->errtype)
-	{
-		if (addr_a->errcode == addr_b->errcode)
-		{
+	if (addr_a->errtype == addr_b->errtype) {
+		if (addr_a->errcode == addr_b->errcode) {
 			return addr_a->info->ai_family - addr_b->info->ai_family;
 		}
 		return addr_a->errcode - addr_b->errcode;
@@ -433,17 +322,15 @@ static int compare_addrs_to_try_by_status(const void *a, const void *b)
 }
 
 static SOCKET sock_create_socket(struct addrinfo *addrinfo, char *errbuf,
-    int errbuflen)
-{
+								 int errbuflen) {
 	SOCKET sock;
 #ifdef SO_NOSIGPIPE
 	int on = 1;
 #endif
 
 	sock = socket(addrinfo->ai_family, addrinfo->ai_socktype,
-	    addrinfo->ai_protocol);
-	if (sock == INVALID_SOCKET)
-	{
+				  addrinfo->ai_protocol);
+	if (sock == INVALID_SOCKET) {
 		sock_geterrmsg(errbuf, errbuflen, "socket() failed");
 		return INVALID_SOCKET;
 	}
@@ -456,10 +343,10 @@ static SOCKET sock_create_socket(struct addrinfo *addrinfo, char *errbuf,
 	 */
 #ifdef SO_NOSIGPIPE
 	if (setsockopt(sock, SOL_SOCKET, SO_NOSIGPIPE, (char *)&on,
-	    sizeof (int)) == -1)
+		sizeof (int)) == -1)
 	{
 		sock_geterrmsg(errbuf, errbuflen,
-		    "setsockopt(SO_NOSIGPIPE) failed");
+			"setsockopt(SO_NOSIGPIPE) failed");
 		closesocket(sock);
 		return INVALID_SOCKET;
 	}
@@ -501,21 +388,18 @@ static SOCKET sock_create_socket(struct addrinfo *addrinfo, char *errbuf,
  * if everything is fine, INVALID_SOCKET if some errors occurred. The error message is returned
  * in the 'errbuf' variable.
  */
-SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nconn, char *errbuf, int errbuflen)
-{
+SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nconn, char *errbuf, int errbuflen) {
 	SOCKET sock;
 
 	/* This is a server socket */
-	if (server)
-	{
+	if (server) {
 		int on;
 
 		/*
 		 * Attempt to create the socket.
 		 */
 		sock = sock_create_socket(addrinfo, errbuf, errbuflen);
-		if (sock == INVALID_SOCKET)
-		{
+		if (sock == INVALID_SOCKET) {
 			return INVALID_SOCKET;
 		}
 
@@ -526,8 +410,8 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 		 * Don't treat an error as a failure.
 		 */
 		on = 1;
-		(void)setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-		    (char *)&on, sizeof (on));
+		(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+						  (char *) &on, sizeof(on));
 
 #if defined(IPV6_V6ONLY) || defined(IPV6_BINDV6ONLY)
 		/*
@@ -560,13 +444,13 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 		 */
 #ifndef IPV6_V6ONLY
   /* For older systems */
-  #define IPV6_V6ONLY IPV6_BINDV6ONLY
+#define IPV6_V6ONLY IPV6_BINDV6ONLY
 #endif /* IPV6_V6ONLY */
 		if (addrinfo->ai_family == PF_INET6)
 		{
 			on = 1;
 			if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
-			    (char *)&on, sizeof (int)) == -1)
+				(char *)&on, sizeof (int)) == -1)
 			{
 				if (errbuf)
 					snprintf(errbuf, errbuflen, "setsockopt(IPV6_V6ONLY)");
@@ -577,26 +461,23 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 #endif /* defined(IPV6_V6ONLY) || defined(IPV6_BINDV6ONLY) */
 
 		/* WARNING: if the address is a mcast one, I should place the proper Win32 code here */
-		if (bind(sock, addrinfo->ai_addr, (int) addrinfo->ai_addrlen) != 0)
-		{
+		if (bind(sock, addrinfo->ai_addr, (int) addrinfo->ai_addrlen) != 0) {
 			sock_geterrmsg(errbuf, errbuflen, "bind() failed");
 			closesocket(sock);
 			return INVALID_SOCKET;
 		}
 
 		if (addrinfo->ai_socktype == SOCK_STREAM)
-			if (listen(sock, nconn) == -1)
-			{
+			if (listen(sock, nconn) == -1) {
 				sock_geterrmsg(errbuf, errbuflen,
-				    "listen() failed");
+							   "listen() failed");
 				closesocket(sock);
 				return INVALID_SOCKET;
 			}
 
 		/* server side ended */
 		return sock;
-	}
-	else	/* we're the client */
+	} else    /* we're the client */
 	{
 		struct addr_status *addrs_to_try;
 		struct addrinfo *tempaddrinfo;
@@ -612,17 +493,15 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 		 *
 		 * How many addrinfos do we have?
 		 */
-		numaddrinfos =  0;
+		numaddrinfos = 0;
 		for (tempaddrinfo = addrinfo; tempaddrinfo != NULL;
-		    tempaddrinfo = tempaddrinfo->ai_next)
-		{
+			 tempaddrinfo = tempaddrinfo->ai_next) {
 			numaddrinfos++;
 		}
 
-		if (numaddrinfos == 0)
-		{
+		if (numaddrinfos == 0) {
 			snprintf(errbuf, errbuflen,
-			    "There are no addresses in the address list");
+					 "There are no addresses in the address list");
 			return INVALID_SOCKET;
 		}
 
@@ -630,16 +509,14 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 		 * Allocate an array of struct addr_status and fill it in.
 		 */
 		addrs_to_try = calloc(numaddrinfos, sizeof *addrs_to_try);
-		if (addrs_to_try == NULL)
-		{
+		if (addrs_to_try == NULL) {
 			snprintf(errbuf, errbuflen,
-			    "Out of memory connecting to %s", host);
+					 "Out of memory connecting to %s", host);
 			return INVALID_SOCKET;
 		}
 
 		for (tempaddrinfo = addrinfo, i = 0; tempaddrinfo != NULL;
-		    tempaddrinfo = tempaddrinfo->ai_next, i++)
-		{
+			 tempaddrinfo = tempaddrinfo->ai_next, i++) {
 			addrs_to_try[i].info = tempaddrinfo;
 			addrs_to_try[i].errcode = 0;
 			addrs_to_try[i].errtype = SOCK_NOERR;
@@ -654,7 +531,7 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 		 * separate address/protocol families).
 		 */
 		qsort(addrs_to_try, numaddrinfos, sizeof *addrs_to_try,
-		    compare_addrs_to_try_by_address_family);
+			  compare_addrs_to_try_by_address_family);
 
 		/* Start out with no socket. */
 		sock = INVALID_SOCKET;
@@ -662,8 +539,7 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 		/*
 		 * Now try them all.
 		 */
-		for (i = 0; i < numaddrinfos; i++)
-		{
+		for (i = 0; i < numaddrinfos; i++) {
 			tempaddrinfo = addrs_to_try[i].info;
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 			break;
@@ -673,8 +549,7 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 			 * different address family, close it.
 			 */
 			if (sock != INVALID_SOCKET &&
-			    current_af != tempaddrinfo->ai_family)
-			{
+				current_af != tempaddrinfo->ai_family) {
 				closesocket(sock);
 				sock = INVALID_SOCKET;
 			}
@@ -683,23 +558,19 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 			 * If we don't have a socket, open one
 			 * for *this* address's address family.
 			 */
-			if (sock == INVALID_SOCKET)
-			{
+			if (sock == INVALID_SOCKET) {
 				sock = sock_create_socket(tempaddrinfo,
-				    errbuf, errbuflen);
-				if (sock == INVALID_SOCKET)
-				{
+										  errbuf, errbuflen);
+				if (sock == INVALID_SOCKET) {
 					free(addrs_to_try);
 					return INVALID_SOCKET;
 				}
 			}
-			if (connect(sock, tempaddrinfo->ai_addr, (int) tempaddrinfo->ai_addrlen) == -1)
-			{
+			if (connect(sock, tempaddrinfo->ai_addr, (int) tempaddrinfo->ai_addrlen) == -1) {
 				addrs_to_try[i].errcode = sock_geterrcode();
 				addrs_to_try[i].errtype =
-				   sock_geterrtype(addrs_to_try[i].errcode);
-			}
-			else
+						sock_geterrtype(addrs_to_try[i].errcode);
+			} else
 				break;
 		}
 
@@ -709,8 +580,7 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 		 * the connect() attempts failed.  Construct an
 		 * error message.
 		 */
-		if (i == numaddrinfos)
-		{
+		if (i == numaddrinfos) {
 			int same_error_for_all;
 			int first_error;
 
@@ -722,17 +592,15 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 			 * address families within error sets.
 			 */
 			qsort(addrs_to_try, numaddrinfos, sizeof *addrs_to_try,
-			    compare_addrs_to_try_by_status);
+				  compare_addrs_to_try_by_status);
 
 			/*
 			 * Are all the errors the same?
 			 */
 			same_error_for_all = 1;
 			first_error = addrs_to_try[0].errcode;
-			for (i = 1; i < numaddrinfos; i++)
-			{
-				if (addrs_to_try[i].errcode != first_error)
-				{
+			for (i = 1; i < numaddrinfos; i++) {
+				if (addrs_to_try[i].errcode != first_error) {
 					same_error_for_all = 0;
 					break;
 				}
@@ -750,13 +618,13 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 					 * up correctly, or set up at all.
 					 */
 					sock_fmterrmsg(errbuf, errbuflen,
-					    addrs_to_try[0].errcode,
-					    "Is the server properly installed? Cannot connect to %s",
-					    host);
+								   addrs_to_try[0].errcode,
+								   "Is the server properly installed? Cannot connect to %s",
+								   host);
 				} else {
 					sock_fmterrmsg(errbuf, errbuflen,
-					    addrs_to_try[0].errcode,
-					    "Cannot connect to %s", host);
+								   addrs_to_try[0].errcode,
+								   "Cannot connect to %s", host);
 				}
 			} else {
 				/*
@@ -768,30 +636,28 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 				size_t msglen;
 
 				snprintf(errbuf, errbuflen,
-				    "Connect to %s failed: ", host);
+						 "Connect to %s failed: ", host);
 
 				msglen = strlen(errbuf);
 				errbufptr = errbuf + msglen;
 				bufspaceleft = errbuflen - msglen;
 
 				for (i = 0; i < numaddrinfos &&
-				    addrs_to_try[i].errcode != SOCK_NOERR;
-				    i++)
-				{
+							addrs_to_try[i].errcode != SOCK_NOERR;
+					 i++) {
 					/*
 					 * Get the string for the address
 					 * and port that got this error.
 					 */
 					sock_getascii_addrport((struct sockaddr_storage *) addrs_to_try[i].info->ai_addr,
-					    errbufptr, (int)bufspaceleft,
-					    NULL, 0, NI_NUMERICHOST, NULL, 0);
+										   errbufptr, (int) bufspaceleft,
+										   NULL, 0, NI_NUMERICHOST, NULL, 0);
 					msglen = strlen(errbuf);
 					errbufptr = errbuf + msglen;
 					bufspaceleft = errbuflen - msglen;
 
 					if (i + 1 < numaddrinfos &&
-					    addrs_to_try[i + 1].errcode == addrs_to_try[i].errcode)
-					{
+						addrs_to_try[i + 1].errcode == addrs_to_try[i].errcode) {
 						/*
 						 * There's another error
 						 * after this, and it has
@@ -803,10 +669,8 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 						 * entry.
 						 */
 						snprintf(errbufptr, bufspaceleft,
-						    ", ");
-					}
-					else
-					{
+								 ", ");
+					} else {
 						/*
 						 * Either there are no
 						 * more errors after this,
@@ -820,22 +684,21 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 						 * more errors.
 						 */
 						sock_fmterrmsg(errbufptr,
-						    bufspaceleft,
-						    addrs_to_try[i].errcode,
-						    "%s", "");
+									   bufspaceleft,
+									   addrs_to_try[i].errcode,
+									   "%s", "");
 						msglen = strlen(errbuf);
 						errbufptr = errbuf + msglen;
 						bufspaceleft = errbuflen - msglen;
 
 						if (i + 1 < numaddrinfos &&
-						    addrs_to_try[i + 1].errcode != SOCK_NOERR)
-						{
+							addrs_to_try[i + 1].errcode != SOCK_NOERR) {
 							/*
 							 * More to come.
 							 */
 							snprintf(errbufptr,
-							    bufspaceleft,
-							    ", ");
+									 bufspaceleft,
+									 ", ");
 						}
 					}
 					msglen = strlen(errbuf);
@@ -845,9 +708,7 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
 			}
 			free(addrs_to_try);
 			return INVALID_SOCKET;
-		}
-		else
-		{
+		} else {
 			free(addrs_to_try);
 			return sock;
 		}
@@ -872,15 +733,13 @@ SOCKET sock_open(const char *host, struct addrinfo *addrinfo, int server, int nc
  * \return '0' if everything is fine, '-1' if some errors occurred. The error message is returned
  * in the 'errbuf' variable.
  */
-int sock_close(SOCKET sock, char *errbuf, int errbuflen)
-{
+int sock_close(SOCKET sock, char *errbuf, int errbuflen) {
 	/*
 	 * SHUT_WR: subsequent calls to the send function are disallowed.
 	 * For TCP sockets, a FIN will be sent after all data is sent and
 	 * acknowledged by the Server.
 	 */
-	if (shutdown(sock, SHUT_WR))
-	{
+	if (shutdown(sock, SHUT_WR)) {
 		sock_geterrmsg(errbuf, errbuflen, "shutdown() feiled");
 		/* close the socket anyway */
 		closesocket(sock);
@@ -908,136 +767,134 @@ int sock_close(SOCKET sock, char *errbuf, int errbuflen)
  */
 static void
 get_gai_errstring(char *errbuf, int errbuflen, const char *prefix, int err,
-    const char *hostname, const char *portname)
-{
+				  const char *hostname, const char *portname) {
 	char hostport[PCAP_ERRBUF_SIZE];
 
 	if (hostname != NULL && portname != NULL)
 		snprintf(hostport, PCAP_ERRBUF_SIZE, "host and port %s:%s",
-		    hostname, portname);
+				 hostname, portname);
 	else if (hostname != NULL)
 		snprintf(hostport, PCAP_ERRBUF_SIZE, "host %s",
-		    hostname);
+				 hostname);
 	else if (portname != NULL)
 		snprintf(hostport, PCAP_ERRBUF_SIZE, "port %s",
-		    portname);
+				 portname);
 	else
 		snprintf(hostport, PCAP_ERRBUF_SIZE, "<no host or port!>");
-	switch (err)
-	{
+	switch (err) {
 #ifdef EAI_ADDRFAMILY
 		case EAI_ADDRFAMILY:
 			snprintf(errbuf, errbuflen,
-			    "%sAddress family for %s not supported",
-			    prefix, hostport);
+				"%sAddress family for %s not supported",
+				prefix, hostport);
 			break;
 #endif
 
 		case EAI_AGAIN:
 			snprintf(errbuf, errbuflen,
-			    "%s%s could not be resolved at this time",
-			    prefix, hostport);
+					 "%s%s could not be resolved at this time",
+					 prefix, hostport);
 			break;
 
 		case EAI_BADFLAGS:
 			snprintf(errbuf, errbuflen,
-			    "%sThe ai_flags parameter for looking up %s had an invalid value",
-			    prefix, hostport);
+					 "%sThe ai_flags parameter for looking up %s had an invalid value",
+					 prefix, hostport);
 			break;
 
 		case EAI_FAIL:
 			snprintf(errbuf, errbuflen,
-			    "%sA non-recoverable error occurred when attempting to resolve %s",
-			    prefix, hostport);
+					 "%sA non-recoverable error occurred when attempting to resolve %s",
+					 prefix, hostport);
 			break;
 
 		case EAI_FAMILY:
 			snprintf(errbuf, errbuflen,
-			    "%sThe address family for looking up %s was not recognized",
-			    prefix, hostport);
+					 "%sThe address family for looking up %s was not recognized",
+					 prefix, hostport);
 			break;
 
 		case EAI_MEMORY:
 			snprintf(errbuf, errbuflen,
-			    "%sOut of memory trying to allocate storage when looking up %s",
-			    prefix, hostport);
+					 "%sOut of memory trying to allocate storage when looking up %s",
+					 prefix, hostport);
 			break;
 
-		/*
-		 * RFC 2553 had both EAI_NODATA and EAI_NONAME.
-		 *
-		 * RFC 3493 has only EAI_NONAME.
-		 *
-		 * Some implementations define EAI_NODATA and EAI_NONAME
-		 * to the same value, others don't.  If EAI_NODATA is
-		 * defined and isn't the same as EAI_NONAME, we handle
-		 * EAI_NODATA.
-		 */
+			/*
+			 * RFC 2553 had both EAI_NODATA and EAI_NONAME.
+			 *
+			 * RFC 3493 has only EAI_NONAME.
+			 *
+			 * Some implementations define EAI_NODATA and EAI_NONAME
+			 * to the same value, others don't.  If EAI_NODATA is
+			 * defined and isn't the same as EAI_NONAME, we handle
+			 * EAI_NODATA.
+			 */
 #if defined(EAI_NODATA) && EAI_NODATA != EAI_NONAME
-		case EAI_NODATA:
-			snprintf(errbuf, errbuflen,
-			    "%sNo address associated with %s",
-			    prefix, hostport);
-			break;
+			case EAI_NODATA:
+				snprintf(errbuf, errbuflen,
+					"%sNo address associated with %s",
+					prefix, hostport);
+				break;
 #endif
 
 		case EAI_NONAME:
 			snprintf(errbuf, errbuflen,
-			    "%sThe %s couldn't be resolved",
-			    prefix, hostport);
+					 "%sThe %s couldn't be resolved",
+					 prefix, hostport);
 			break;
 
 		case EAI_SERVICE:
 			snprintf(errbuf, errbuflen,
-			    "%sThe service value specified when looking up %s as not recognized for the socket type",
-			    prefix, hostport);
+					 "%sThe service value specified when looking up %s as not recognized for the socket type",
+					 prefix, hostport);
 			break;
 
 		case EAI_SOCKTYPE:
 			snprintf(errbuf, errbuflen,
-			    "%sThe socket type specified when looking up %s as not recognized",
-			    prefix, hostport);
+					 "%sThe socket type specified when looking up %s as not recognized",
+					 prefix, hostport);
 			break;
 
 #ifdef EAI_SYSTEM
-		case EAI_SYSTEM:
-			/*
-			 * Assumed to be UN*X.
-			 */
-			pcap_fmt_errmsg_for_errno(errbuf, errbuflen, errno,
-			    "%sAn error occurred when looking up %s",
-			    prefix, hostport);
-			break;
+			case EAI_SYSTEM:
+				/*
+				 * Assumed to be UN*X.
+				 */
+				pcap_fmt_errmsg_for_errno(errbuf, errbuflen, errno,
+					"%sAn error occurred when looking up %s",
+					prefix, hostport);
+				break;
 #endif
 
 #ifdef EAI_BADHINTS
-		case EAI_BADHINTS:
-			snprintf(errbuf, errbuflen,
-			    "%sInvalid value for hints when looking up %s",
-			    prefix, hostport);
-			break;
+			case EAI_BADHINTS:
+				snprintf(errbuf, errbuflen,
+					"%sInvalid value for hints when looking up %s",
+					prefix, hostport);
+				break;
 #endif
 
 #ifdef EAI_PROTOCOL
-		case EAI_PROTOCOL:
-			snprintf(errbuf, errbuflen,
-			    "%sResolved protocol when looking up %s is unknown",
-			    prefix, hostport);
-			break;
+			case EAI_PROTOCOL:
+				snprintf(errbuf, errbuflen,
+					"%sResolved protocol when looking up %s is unknown",
+					prefix, hostport);
+				break;
 #endif
 
 #ifdef EAI_OVERFLOW
-		case EAI_OVERFLOW:
-			snprintf(errbuf, errbuflen,
-			    "%sArgument buffer overflow when looking up %s",
-			    prefix, hostport);
-			break;
+			case EAI_OVERFLOW:
+				snprintf(errbuf, errbuflen,
+					"%sArgument buffer overflow when looking up %s",
+					prefix, hostport);
+				break;
 #endif
 
 		default:
 			snprintf(errbuf, errbuflen,
-			    "%sgetaddrinfo() error %d when looking up %s",
-			    prefix, err, hostport);
+					 "%sgetaddrinfo() error %d when looking up %s",
+					 prefix, err, hostport);
 			break;
 	}
 }
@@ -1081,8 +938,7 @@ get_gai_errstring(char *errbuf, int errbuflen, const char *prefix, int err,
  * the programmer to look at that function in order to set the 'hints' variable appropriately.
  */
 int sock_initaddress(const char *host, const char *port,
-    struct addrinfo *hints, struct addrinfo **addrinfo, char *errbuf, int errbuflen)
-{
+					 struct addrinfo *hints, struct addrinfo **addrinfo, char *errbuf, int errbuflen) {
 	int retval;
 
 	/*
@@ -1095,10 +951,8 @@ int sock_initaddress(const char *host, const char *port,
 	 * no port was specified.
 	 */
 	retval = getaddrinfo(host, port == NULL ? "0" : port, hints, addrinfo);
-	if (retval != 0)
-	{
-		if (errbuf)
-		{
+	if (retval != 0) {
+		if (errbuf) {
 			if (host != NULL && port != NULL) {
 				/*
 				 * Try with just a host, to distinguish
@@ -1108,7 +962,7 @@ int sock_initaddress(const char *host, const char *port,
 				int try_retval;
 
 				try_retval = getaddrinfo(host, NULL, hints,
-				    addrinfo);
+										 addrinfo);
 				if (try_retval == 0) {
 					/*
 					 * Worked with just the host,
@@ -1119,7 +973,7 @@ int sock_initaddress(const char *host, const char *port,
 					 */
 					freeaddrinfo(*addrinfo);
 					get_gai_errstring(errbuf, errbuflen,
-					    "", retval, NULL, port);
+									  "", retval, NULL, port);
 				} else {
 					/*
 					 * Didn't work with just the host,
@@ -1127,7 +981,7 @@ int sock_initaddress(const char *host, const char *port,
 					 * with the host.
 					 */
 					get_gai_errstring(errbuf, errbuflen,
-					    "", retval, host, NULL);
+									  "", retval, host, NULL);
 				}
 			} else {
 				/*
@@ -1135,7 +989,7 @@ int sock_initaddress(const char *host, const char *port,
 				 * there's nothing to determine.
 				 */
 				get_gai_errstring(errbuf, errbuflen, "",
-				    retval, host, port);
+								  retval, host, port);
 			}
 		}
 		return -1;
@@ -1154,8 +1008,7 @@ int sock_initaddress(const char *host, const char *port,
 	 * support? :-))
 	 */
 	if (((*addrinfo)->ai_family != PF_INET) &&
-	    ((*addrinfo)->ai_family != PF_INET6))
-	{
+		((*addrinfo)->ai_family != PF_INET6)) {
 		if (errbuf)
 			snprintf(errbuf, errbuflen, "getaddrinfo(): socket type not supported");
 		freeaddrinfo(*addrinfo);
@@ -1167,8 +1020,7 @@ int sock_initaddress(const char *host, const char *port,
 	 * You can't do multicast (or broadcast) TCP.
 	 */
 	if (((*addrinfo)->ai_socktype == SOCK_STREAM) &&
-	    (sock_ismcastaddr((*addrinfo)->ai_addr) == 0))
-	{
+		(sock_ismcastaddr((*addrinfo)->ai_addr) == 0)) {
 		if (errbuf)
 			snprintf(errbuf, errbuflen, "getaddrinfo(): multicast addresses are not valid when using TCP streams");
 		freeaddrinfo(*addrinfo);
@@ -1207,22 +1059,19 @@ int sock_initaddress(const char *host, const char *port,
  * For errors, an error message is returned in the 'errbuf' variable.
  */
 int sock_send(SOCKET sock, SSL *ssl _U_NOSSL_, const char *buffer, size_t size,
-    char *errbuf, int errbuflen)
-{
+			  char *errbuf, int errbuflen) {
 	int remaining;
 	ssize_t nsent;
 
-	if (size > INT_MAX)
-	{
-		if (errbuf)
-		{
+	if (size > INT_MAX) {
+		if (errbuf) {
 			snprintf(errbuf, errbuflen,
-			    "Can't send more than %u bytes with sock_send",
-			    INT_MAX);
+					 "Can't send more than %u bytes with sock_send",
+					 INT_MAX);
 		}
 		return -1;
 	}
-	remaining = (int)size;
+	remaining = (int) size;
 
 	do {
 #ifdef HAVE_OPENSSL
@@ -1245,8 +1094,7 @@ int sock_send(SOCKET sock, SSL *ssl _U_NOSSL_, const char *buffer, size_t size,
 #endif
 #endif //FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 
-		if (nsent == -1)
-		{
+		if (nsent == -1) {
 			/*
 			 * If the client closed the connection out from
 			 * under us, there's no need to log that as an
@@ -1254,25 +1102,8 @@ int sock_send(SOCKET sock, SSL *ssl _U_NOSSL_, const char *buffer, size_t size,
 			 */
 			int errcode;
 
-#ifdef _WIN32
-			errcode = GetLastError();
-			if (errcode == WSAECONNRESET ||
-			    errcode == WSAECONNABORTED)
-			{
-				/*
-				 * WSAECONNABORTED appears to be the error
-				 * returned in Winsock when you try to send
-				 * on a connection where the peer has closed
-				 * the receive side.
-				 */
-				return -2;
-			}
-			sock_fmterrmsg(errbuf, errbuflen, errcode,
-			    "send() failed");
-#else
 			errcode = errno;
-			if (errcode == ECONNRESET || errcode == EPIPE)
-			{
+			if (errcode == ECONNRESET || errcode == EPIPE) {
 				/*
 				 * EPIPE is what's returned on UN*X when
 				 * you try to send on a connection when
@@ -1281,8 +1112,7 @@ int sock_send(SOCKET sock, SSL *ssl _U_NOSSL_, const char *buffer, size_t size,
 				return -2;
 			}
 			sock_fmterrmsg(errbuf, errbuflen, errcode,
-			    "send() failed");
-#endif
+						   "send() failed");
 			return -1;
 		}
 
@@ -1347,10 +1177,9 @@ int sock_send(SOCKET sock, SSL *ssl _U_NOSSL_, const char *buffer, size_t size,
  * \warning In case of 'checkonly', be carefully to call this function *before* copying
  * the data into the buffer. Otherwise, the control about the buffer overflow is useless.
  */
-int sock_bufferize(const void *data, int size, char *outbuf, int *offset, int totsize, int checkonly, char *errbuf, int errbuflen)
-{
-	if ((*offset + size) > totsize)
-	{
+int sock_bufferize(const void *data, int size, char *outbuf, int *offset, int totsize, int checkonly, char *errbuf,
+				   int errbuflen) {
+	if ((*offset + size) > totsize) {
 		if (errbuf)
 			snprintf(errbuf, errbuflen, "Not enough space in the temporary send buffer.");
 		return -1;
@@ -1411,24 +1240,20 @@ int sock_bufferize(const void *data, int size, char *outbuf, int *offset, int to
  */
 
 int sock_recv(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
-    int flags, char *errbuf, int errbuflen)
-{
+			  int flags, char *errbuf, int errbuflen) {
 	int recv_flags = 0;
 	char *bufp = buffer;
 	int remaining;
 	ssize_t nread;
 
-	if (size == 0)
-	{
+	if (size == 0) {
 		return 0;
 	}
-	if (size > INT_MAX)
-	{
-		if (errbuf)
-		{
+	if (size > INT_MAX) {
+		if (errbuf) {
 			snprintf(errbuf, errbuflen,
-			    "Can't read more than %u bytes with sock_recv",
-			    INT_MAX);
+					 "Can't read more than %u bytes with sock_recv",
+					 INT_MAX);
 		}
 		return -1;
 	}
@@ -1461,34 +1286,27 @@ int sock_recv(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
 		nread = recv(sock, bufp, remaining, recv_flags);
 #endif
 
-		if (nread == -1)
-		{
-#ifndef _WIN32
+		if (nread == -1) {
 			if (errno == EINTR)
 				return -3;
-#endif
 			sock_geterrmsg(errbuf, errbuflen, "recv() failed");
 			return -1;
 		}
 
-		if (nread == 0)
-		{
+		if (nread == 0) {
 			if ((flags & SOCK_EOF_IS_ERROR) ||
-			    (remaining != (int) size))
-			{
+				(remaining != (int) size)) {
 				/*
 				 * Either we've already read some data,
 				 * or we're always supposed to return
 				 * an error on EOF.
 				 */
-				if (errbuf)
-				{
+				if (errbuf) {
 					snprintf(errbuf, errbuflen,
-					    "The other host terminated the connection.");
+							 "The other host terminated the connection.");
 				}
 				return -1;
-			}
-			else
+			} else
 				return 0;
 		}
 
@@ -1496,8 +1314,7 @@ int sock_recv(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
 		 * Do we want to read the amount requested, or just return
 		 * what we got?
 		 */
-		if (!(flags & SOCK_RECEIVEALL_YES))
-		{
+		if (!(flags & SOCK_RECEIVEALL_YES)) {
 			/*
 			 * Just return what we got.
 			 */
@@ -1518,25 +1335,19 @@ int sock_recv(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
  * Returns the size of the datagram on success or -1 on error.
  */
 int sock_recv_dgram(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
-    char *errbuf, int errbuflen)
-{
+					char *errbuf, int errbuflen) {
 	ssize_t nread;
-#ifndef _WIN32
 	struct msghdr message;
 	struct iovec iov;
-#endif
 
-	if (size == 0)
-	{
+	if (size == 0) {
 		return 0;
 	}
-	if (size > INT_MAX)
-	{
-		if (errbuf)
-		{
+	if (size > INT_MAX) {
+		if (errbuf) {
 			snprintf(errbuf, errbuflen,
-			    "Can't read more than %u bytes with sock_recv_dgram",
-			    INT_MAX);
+					 "Can't read more than %u bytes with sock_recv_dgram",
+					 INT_MAX);
 		}
 		return -1;
 	}
@@ -1555,28 +1366,6 @@ int sock_recv_dgram(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
 	 * entire datagram in one recv() or recvmsg() call, and
 	 * don't need to loop.
 	 */
-#ifdef _WIN32
-	nread = recv(sock, buffer, (int)size, 0);
-	if (nread == SOCKET_ERROR)
-	{
-		/*
-		 * To quote the MSDN documentation for recv(),
-		 * "If the datagram or message is larger than
-		 * the buffer specified, the buffer is filled
-		 * with the first part of the datagram, and recv
-		 * generates the error WSAEMSGSIZE. For unreliable
-		 * protocols (for example, UDP) the excess data is
-		 * lost..."
-		 *
-		 * So if the message is bigger than the buffer
-		 * supplied to us, the excess data is discarded,
-		 * and we'll report an error.
-		 */
-		sock_fmterrmsg(errbuf, errbuflen, sock_geterrcode(),
-		    "recv() failed");
-		return -1;
-	}
-#else /* _WIN32 */
 	/*
 	 * The Single UNIX Specification says that a recv() on
 	 * a socket for a message-oriented protocol will discard
@@ -1588,7 +1377,7 @@ int sock_recv_dgram(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
 	 * when receiving a message for a message-oriented
 	 * protocol.
 	 */
-	message.msg_name = NULL;	/* we don't care who it's from */
+	message.msg_name = NULL;    /* we don't care who it's from */
 	message.msg_namelen = 0;
 	iov.iov_base = buffer;
 	iov.iov_len = size;
@@ -1606,8 +1395,7 @@ int sock_recv_dgram(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
 #else
 	nread = recvmsg(sock, &message, 0);
 #endif
-	if (nread == -1)
-	{
+	if (nread == -1) {
 		if (errno == EINTR)
 			return -3;
 		sock_geterrmsg(errbuf, errbuflen, "recv() failed");
@@ -1631,13 +1419,12 @@ int sock_recv_dgram(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
 		return -1;
 	}
 #endif /* HAVE_STRUCT_MSGHDR_MSG_FLAGS */
-#endif /* _WIN32 */
 
 	/*
 	 * The size we're reading fits in an int, so the return value
 	 * will fit in an int.
 	 */
-	return (int)nread;
+	return (int) nread;
 }
 
 /*
@@ -1665,11 +1452,10 @@ int sock_recv_dgram(SOCKET sock, SSL *ssl _U_NOSSL_, void *buffer, size_t size,
  * \return '0' if everything is fine, '-1' if some errors occurred.
  * The error message is returned in the 'errbuf' variable.
  */
-int sock_discard(SOCKET sock, SSL *ssl, int size, char *errbuf, int errbuflen)
-{
+int sock_discard(SOCKET sock, SSL *ssl, int size, char *errbuf, int errbuflen) {
 #define TEMP_BUF_SIZE 32768
 
-	char buffer[TEMP_BUF_SIZE];		/* network buffer, to be used when the message is discarded */
+	char buffer[TEMP_BUF_SIZE];        /* network buffer, to be used when the message is discarded */
 
 	/*
 	 * A static allocation avoids the need of a 'malloc()' each time we want to discard a message
@@ -1679,8 +1465,7 @@ int sock_discard(SOCKET sock, SSL *ssl, int size, char *errbuf, int errbuflen)
 	 * We do not want to create a bigger variable because this causes the program to exit on
 	 * some platforms (e.g. BSD)
 	 */
-	while (size > TEMP_BUF_SIZE)
-	{
+	while (size > TEMP_BUF_SIZE) {
 		if (sock_recv(sock, ssl, buffer, TEMP_BUF_SIZE, SOCK_RECEIVEALL_YES, errbuf, errbuflen) == -1)
 			return -1;
 
@@ -1691,8 +1476,7 @@ int sock_discard(SOCKET sock, SSL *ssl, int size, char *errbuf, int errbuflen)
 	 * If there is still data to be discarded
 	 * In this case, the data can fit into the temporary buffer
 	 */
-	if (size)
-	{
+	if (size) {
 		if (sock_recv(sock, ssl, buffer, size, SOCK_RECEIVEALL_YES, errbuf, errbuflen) == -1)
 			return -1;
 	}
@@ -1728,12 +1512,10 @@ int sock_discard(SOCKET sock, SSL *ssl, int size, char *errbuf, int errbuflen)
  * - '-1' in case the host does not belong to the host list (and therefore it is not allowed to connect
  * - '-2' in case or error. The error message is returned in the 'errbuf' variable.
  */
-int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage *from, char *errbuf, int errbuflen)
-{
+int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage *from, char *errbuf, int errbuflen) {
 	/* checks if the connecting host is among the ones allowed */
-	if ((hostlist) && (hostlist[0]))
-	{
-		char *token;					/* temp, needed to separate items into the hostlist */
+	if ((hostlist) && (hostlist[0])) {
+		char *token;                    /* temp, needed to separate items into the hostlist */
 		struct addrinfo *addrinfo, *ai_next;
 		char *temphostlist;
 		char *lasts;
@@ -1744,10 +1526,9 @@ int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage
 		 * So, we have to create a new temporary string in which the original content is kept
 		 */
 		temphostlist = strdup(hostlist);
-		if (temphostlist == NULL)
-		{
+		if (temphostlist == NULL) {
 			sock_geterrmsg(errbuf, errbuflen,
-			    "sock_check_hostlist(), malloc() failed");
+						   "sock_check_hostlist(), malloc() failed");
 			return -2;
 		}
 
@@ -1756,8 +1537,7 @@ int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage
 		/* it avoids a warning in the compilation ('addrinfo used but not initialized') */
 		addrinfo = NULL;
 
-		while (token != NULL)
-		{
+		while (token != NULL) {
 			struct addrinfo hints;
 			int retval;
 
@@ -1767,12 +1547,11 @@ int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage
 			hints.ai_socktype = SOCK_STREAM;
 
 			retval = getaddrinfo(token, NULL, &hints, &addrinfo);
-			if (retval != 0)
-			{
+			if (retval != 0) {
 				if (errbuf)
 					get_gai_errstring(errbuf, errbuflen,
-					    "Allowed host list error: ",
-					    retval, token, NULL);
+									  "Allowed host list error: ",
+									  retval, token, NULL);
 
 				/*
 				 * Note that at least one call to getaddrinfo()
@@ -1787,10 +1566,8 @@ int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage
 
 			/* ai_next is required to preserve the content of addrinfo, in order to deallocate it properly */
 			ai_next = addrinfo;
-			while (ai_next)
-			{
-				if (sock_cmpaddr(from, (struct sockaddr_storage *) ai_next->ai_addr) == 0)
-				{
+			while (ai_next) {
+				if (sock_cmpaddr(from, (struct sockaddr_storage *) ai_next->ai_addr) == 0) {
 					free(temphostlist);
 					freeaddrinfo(addrinfo);
 					return 0;
@@ -1810,8 +1587,7 @@ int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage
 			token = pcap_strtok_r(NULL, sep, &lasts);
 		}
 
-		if (addrinfo)
-		{
+		if (addrinfo) {
 			freeaddrinfo(addrinfo);
 			addrinfo = NULL;
 		}
@@ -1859,22 +1635,18 @@ int sock_check_hostlist(char *hostlist, const char *sep, struct sockaddr_storage
  *
  * \return '0' if the addresses are equal, '-1' if they are different.
  */
-int sock_cmpaddr(struct sockaddr_storage *first, struct sockaddr_storage *second)
-{
-	if (first->ss_family == second->ss_family)
-	{
-		if (first->ss_family == AF_INET)
-		{
+int sock_cmpaddr(struct sockaddr_storage *first, struct sockaddr_storage *second) {
+	if (first->ss_family == second->ss_family) {
+		if (first->ss_family == AF_INET) {
 			if (memcmp(&(((struct sockaddr_in *) first)->sin_addr),
-				&(((struct sockaddr_in *) second)->sin_addr),
-				sizeof(struct in_addr)) == 0)
+					   &(((struct sockaddr_in *) second)->sin_addr),
+					   sizeof(struct in_addr)) == 0)
 				return 0;
-		}
-		else /* address family is AF_INET6 */
+		} else /* address family is AF_INET6 */
 		{
 			if (memcmp(&(((struct sockaddr_in6 *) first)->sin6_addr),
-				&(((struct sockaddr_in6 *) second)->sin6_addr),
-				sizeof(struct in6_addr)) == 0)
+					   &(((struct sockaddr_in6 *) second)->sin6_addr),
+					   sizeof(struct in6_addr)) == 0)
 				return 0;
 		}
 	}
@@ -1923,16 +1695,15 @@ int sock_cmpaddr(struct sockaddr_storage *first, struct sockaddr_storage *second
  * \warning If the socket is using a connectionless protocol, the address may not be available
  * until I/O occurs on the socket.
  */
-int sock_getmyinfo(SOCKET sock, char *address, int addrlen, char *port, int portlen, int flags, char *errbuf, int errbuflen)
-{
+int sock_getmyinfo(SOCKET sock, char *address, int addrlen, char *port, int portlen, int flags, char *errbuf,
+				   int errbuflen) {
 	struct sockaddr_storage mysockaddr;
 	socklen_t sockaddrlen;
 
 
 	sockaddrlen = sizeof(struct sockaddr_storage);
 
-	if (getsockname(sock, (struct sockaddr *) &mysockaddr, &sockaddrlen) == -1)
-	{
+	if (getsockname(sock, (struct sockaddr *) &mysockaddr, &sockaddrlen) == -1) {
 		sock_geterrmsg(errbuf, errbuflen, "getsockname() failed");
 		return 0;
 	}
@@ -1989,51 +1760,40 @@ int sock_getmyinfo(SOCKET sock, char *address, int addrlen, char *port, int port
  * and 'port'.
  * In any case, the returned strings are '0' terminated.
  */
-int sock_getascii_addrport(const struct sockaddr_storage *sockaddr, char *address, int addrlen, char *port, int portlen, int flags, char *errbuf, size_t errbuflen)
-{
+int sock_getascii_addrport(const struct sockaddr_storage *sockaddr, char *address, int addrlen, char *port, int portlen,
+						   int flags, char *errbuf, size_t errbuflen) {
 	socklen_t sockaddrlen;
-	int retval;					/* Variable that keeps the return value; */
+	int retval;                    /* Variable that keeps the return value; */
 
 	retval = -1;
 
-#ifdef _WIN32
-	if (sockaddr->ss_family == AF_INET)
-		sockaddrlen = sizeof(struct sockaddr_in);
-	else
-		sockaddrlen = sizeof(struct sockaddr_in6);
-#else
 	sockaddrlen = sizeof(struct sockaddr_storage);
-#endif
 
-	if ((flags & NI_NUMERICHOST) == 0)	/* Check that we want literal names */
+	if ((flags & NI_NUMERICHOST) == 0)    /* Check that we want literal names */
 	{
 		if ((sockaddr->ss_family == AF_INET6) &&
-			(memcmp(&((struct sockaddr_in6 *) sockaddr)->sin6_addr, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", sizeof(struct in6_addr)) == 0))
-		{
+			(memcmp(&((struct sockaddr_in6 *) sockaddr)->sin6_addr, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
+					sizeof(struct in6_addr)) == 0)) {
 			if (address)
 				pcap_strlcpy(address, SOCKET_NAME_NULL_DAD, addrlen);
 			return retval;
 		}
 	}
 
-	if (getnameinfo((struct sockaddr *) sockaddr, sockaddrlen, address, addrlen, port, portlen, flags) != 0)
-	{
+	if (getnameinfo((struct sockaddr *) sockaddr, sockaddrlen, address, addrlen, port, portlen, flags) != 0) {
 		/* If the user wants to receive an error message */
-		if (errbuf)
-		{
+		if (errbuf) {
 			sock_geterrmsg(errbuf, errbuflen,
-			    "getnameinfo() failed");
+						   "getnameinfo() failed");
 			errbuf[errbuflen - 1] = 0;
 		}
 
-		if (address)
-		{
+		if (address) {
 			pcap_strlcpy(address, SOCKET_NO_NAME_AVAILABLE, addrlen);
 			address[addrlen - 1] = 0;
 		}
 
-		if (port)
-		{
+		if (port) {
 			pcap_strlcpy(port, SOCKET_NO_PORT_AVAILABLE, portlen);
 			port[portlen - 1] = 0;
 		}
@@ -2080,8 +1840,8 @@ int sock_getascii_addrport(const struct sockaddr_storage *sockaddr, char *addres
  *
  * \warning The sockaddr_storage structure MUST be allocated by the user.
  */
-int sock_present2network(const char *address, struct sockaddr_storage *sockaddr, int addr_family, char *errbuf, int errbuflen)
-{
+int sock_present2network(const char *address, struct sockaddr_storage *sockaddr, int addr_family, char *errbuf,
+						 int errbuflen) {
 	int retval;
 	struct addrinfo *addrinfo;
 	struct addrinfo hints;
@@ -2098,8 +1858,7 @@ int sock_present2network(const char *address, struct sockaddr_storage *sockaddr,
 	else
 		memcpy(sockaddr, addrinfo->ai_addr, sizeof(struct sockaddr_in6));
 
-	if (addrinfo->ai_next != NULL)
-	{
+	if (addrinfo->ai_next != NULL) {
 		freeaddrinfo(addrinfo);
 
 		if (errbuf)

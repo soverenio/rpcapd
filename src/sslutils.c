@@ -71,7 +71,7 @@ int ssl_init_once(int is_server, int enable_compression, char *errbuf, size_t er
 		SSL_COMP_get_compression_methods();
 
 	SSL_METHOD const *meth =
-	    is_server ? SSLv23_server_method() : SSLv23_client_method();
+		is_server ? SSLv23_server_method() : SSLv23_client_method();
 	ctx = SSL_CTX_new(meth);
 	if (! ctx)
 	{
@@ -197,12 +197,10 @@ int ssl_send(SSL *ssl, char const *buffer, int size, char *errbuf, size_t errbuf
 		}
 		else if (ssl_err == SSL_ERROR_SYSCALL)
 		{
-#ifndef _WIN32
 			if (errno == ECONNRESET || errno == EPIPE) return -2;
-#endif
 		}
 		snprintf(errbuf, errbuflen, "SSL_write(): %s",
-		    ERR_error_string(ERR_get_error(), NULL));
+			ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 }
@@ -226,7 +224,7 @@ int ssl_recv(SSL *ssl, char *buffer, int size, char *errbuf, size_t errbuflen)
 		{
 			// Should not happen
 			snprintf(errbuf, errbuflen, "SSL_read(): %s",
-			    ERR_error_string(ERR_get_error(), NULL));
+				ERR_error_string(ERR_get_error(), NULL));
 			return -2;
 		}
 	}

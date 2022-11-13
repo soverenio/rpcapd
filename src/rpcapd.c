@@ -37,31 +37,31 @@
 #include "ftmacros.h"
 #include "diag-control.h"
 
-#include <errno.h>		// for the errno variable
-#include <string.h>		// for strtok, etc
-#include <stdlib.h>		// for malloc(), free(), ...
-#include <stdio.h>		// for fprintf(), stderr, FILE etc
-#include <pcap.h>		// for PCAP_ERRBUF_SIZE
-#include <signal.h>		// for signal()
+#include <errno.h>        // for the errno variable
+#include <string.h>        // for strtok, etc
+#include <stdlib.h>        // for malloc(), free(), ...
+#include <stdio.h>        // for fprintf(), stderr, FILE etc
+#include <pcap.h>        // for PCAP_ERRBUF_SIZE
+#include <signal.h>        // for signal()
 
 #include "fmtutils.h"
-#include "sockutils.h"		// for socket calls
-#include "varattrs.h"		// for _U_
+#include "sockutils.h"        // for socket calls
+#include "varattrs.h"        // for _U_
 #include "portability.h"
 #include "rpcapd.h"
-#include "config_params.h"	// configuration file parameters
-#include "fileconf.h"		// for the configuration file management
+#include "config_params.h"    // configuration file parameters
+#include "fileconf.h"        // for the configuration file management
 #include "rpcap-protocol.h"
-#include "daemon.h"		// the true main() method of this daemon
+#include "daemon.h"        // the true main() method of this daemon
 #include "log.h"
 
 #ifdef HAVE_OPENSSL
 #include "sslutils.h"
 #endif
 
-#include <fcntl.h>		// for open()
-#include <unistd.h>		// for exit()
-#include <sys/wait.h>		// waitpid()
+#include <fcntl.h>        // for open()
+#include <unistd.h>        // for exit()
+#include <sys/wait.h>        // waitpid()
 
 //
 // Element in list of sockets on which we're listening for connections.
@@ -72,120 +72,99 @@ struct listen_sock {
 };
 
 // Global variables
-char hostlist[MAX_HOST_LIST + 1];		//!< Keeps the list of the hosts that are allowed to connect to this server
-struct active_pars activelist[MAX_ACTIVE_LIST];	//!< Keeps the list of the hosts (host, port) on which I want to connect to (active mode)
-int nullAuthAllowed;				//!< '1' if we permit NULL authentication, '0' otherwise
-static struct listen_sock *listen_socks;	//!< sockets on which we listen
-char loadfile[MAX_LINE + 1];			//!< Name of the file from which we have to load the configuration
-static int passivemode = 1;			//!< '1' if we want to run in passive mode as well
-static struct addrinfo mainhints;		//!< temporary struct to keep settings needed to open the new socket
-static char address[MAX_LINE + 1];		//!< keeps the network address (either numeric or literal) to bind to
-static char port[MAX_LINE + 1];			//!< keeps the network port to bind to
-static char data_port[MAX_LINE + 1];		//!< keeps the network port to use to transfer data
-#ifdef _WIN32
-static HANDLE state_change_event;		//!< event to signal that a state change should take place
-#endif
-static volatile sig_atomic_t shutdown_server;	//!< '1' if the server is to shut down
-static volatile sig_atomic_t reread_config;	//!< '1' if the server is to re-read its configuration
+char hostlist[MAX_HOST_LIST + 1];        //!< Keeps the list of the hosts that are allowed to connect to this server
+struct active_pars activelist[MAX_ACTIVE_LIST];    //!< Keeps the list of the hosts (host, port) on which I want to connect to (active mode)
+int nullAuthAllowed;                //!< '1' if we permit NULL authentication, '0' otherwise
+static struct listen_sock *listen_socks;    //!< sockets on which we listen
+char loadfile[MAX_LINE + 1];            //!< Name of the file from which we have to load the configuration
+static int passivemode = 1;            //!< '1' if we want to run in passive mode as well
+static struct addrinfo mainhints;        //!< temporary struct to keep settings needed to open the new socket
+static char address[MAX_LINE + 1];        //!< keeps the network address (either numeric or literal) to bind to
+static char port[MAX_LINE + 1];            //!< keeps the network port to bind to
+static char data_port[MAX_LINE + 1];        //!< keeps the network port to use to transfer data
+static volatile sig_atomic_t shutdown_server;    //!< '1' if the server is to shut down
+static volatile sig_atomic_t reread_config;    //!< '1' if the server is to re-read its configuration
 static int uses_ssl; //!< '1' to use TLS over the data socket
 
-extern char *optarg;	// for getopt()
+extern char *optarg;    // for getopt()
 
 // Function definition
-#ifdef _WIN32
-static unsigned __stdcall main_active(void *ptr);
-static BOOL WINAPI main_ctrl_event(DWORD);
-#else
 static void *main_active(void *ptr);
-static void main_terminate(int sign);
-static void main_reread_config(int sign);
-#endif
-static void accept_connections(void);
-static void accept_connection(SOCKET listen_sock);
-#ifndef _WIN32
-static void main_reap_children(int sign);
-#endif
-#ifdef _WIN32
-static unsigned __stdcall main_passive_serviceloop_thread(void *ptr);
-#endif
 
-#define RPCAP_ACTIVE_WAIT 30		/* Waiting time between two attempts to open a connection, in active mode (default: 30 sec) */
+static void main_terminate(int sign);
+
+static void main_reread_config(int sign);
+
+static void accept_connections(void);
+
+static void accept_connection(SOCKET listen_sock);
+
+static void main_reap_children(int sign);
+
+#define RPCAP_ACTIVE_WAIT 30        /* Waiting time between two attempts to open a connection, in active mode (default: 30 sec) */
 
 /*!
 	\brief Prints the usage screen if it is launched in console mode.
 */
-static void printusage(FILE * f)
-{
+static void printusage(FILE *f) {
 	const char *usagetext =
-	"USAGE:"
-	" "  PROGRAM_NAME " [-b <address>] [-p <port>] [-t <data_port>] [-4] [-l <host_list>]\n"
-	"              [-a <host,port>] [-n] [-v] [-d] "
-#ifndef _WIN32
-	"[-i] "
-#endif
-        "[-D] [-s <config_file>]\n"
-        "              [-f <config_file>]\n\n"
-	"  -b <address>    the address to bind to (either numeric or literal).\n"
-	"                  Default: binds to all local IPv4 and IPv6 addresses\n\n"
-	"  -p <port>       the port to bind to.\n"
-	"                  Default: binds to port " RPCAP_DEFAULT_NETPORT "\n\n"
-	"  -t <data port>: the port to use to transfer data.\n"
-	"                  Default: an unused port is chosen by the operating system\n\n"
-	"  -4              use only IPv4.\n"
-	"                  Default: use both IPv4 and IPv6 waiting sockets\n\n"
-	"  -l <host_list>  a file that contains a list of hosts that are allowed\n"
-	"                  to connect to this server (if more than one, list them one\n"
-	"                  per line).\n"
-	"                  We suggest to use literal names (instead of numeric ones)\n"
-	"                  in order to avoid problems with different address families.\n\n"
-	"  -n              permit NULL authentication (usually used with '-l')\n\n"
-	"  -a <host,port>  run in active mode when connecting to 'host' on port 'port'\n"
-	"                  In case 'port' is omitted, the default port (" RPCAP_DEFAULT_NETPORT_ACTIVE ") is used\n\n"
-	"  -v              run in active mode only (default: if '-a' is specified, it\n"
-	"                  accepts passive connections as well)\n\n"
-	"  -d              run in daemon mode (UNIX only) or as a service (Win32 only)\n"
-	"                  Warning (Win32): this switch is provided automatically when\n"
-	"                  the service is started from the control panel\n\n"
-#ifndef _WIN32
-	"  -i              run in inetd mode (UNIX only)\n\n"
-#endif
-	"  -D              log debugging messages\n\n"
-#ifdef HAVE_OPENSSL
-	"  -S              encrypt all communication with SSL (implements rpcaps://)\n"
+			"USAGE:"
+			" "  PROGRAM_NAME " [-b <address>] [-p <port>] [-t <data_port>] [-4] [-l <host_list>]\n"
+			"              [-a <host,port>] [-n] [-v] [-d] "
+			"[-i] "
+			"[-D] [-s <config_file>]\n"
+			"              [-f <config_file>]\n\n"
+			"  -b <address>    the address to bind to (either numeric or literal).\n"
+			"                  Default: binds to all local IPv4 and IPv6 addresses\n\n"
+			"  -p <port>       the port to bind to.\n"
+			"                  Default: binds to port " RPCAP_DEFAULT_NETPORT "\n\n"
+			"  -t <data port>: the port to use to transfer data.\n"
+			"                  Default: an unused port is chosen by the operating system\n\n"
+			"  -4              use only IPv4.\n"
+			"                  Default: use both IPv4 and IPv6 waiting sockets\n\n"
+			"  -l <host_list>  a file that contains a list of hosts that are allowed\n"
+			"                  to connect to this server (if more than one, list them one\n"
+			"                  per line).\n"
+			"                  We suggest to use literal names (instead of numeric ones)\n"
+			"                  in order to avoid problems with different address families.\n\n"
+			"  -n              permit NULL authentication (usually used with '-l')\n\n"
+			"  -a <host,port>  run in active mode when connecting to 'host' on port 'port'\n"
+			"                  In case 'port' is omitted, the default port (" RPCAP_DEFAULT_NETPORT_ACTIVE ") is used\n\n"
+			"  -v              run in active mode only (default: if '-a' is specified, it\n"
+			"                  accepts passive connections as well)\n\n"
+			"  -d              run in daemon mode\n\n"
+			"  -i              run in inetd mode\n\n"
+			"  -D              log debugging messages\n\n"
+			#ifdef HAVE_OPENSSL
+			"  -S              encrypt all communication with SSL (implements rpcaps://)\n"
 	"  -C              enable compression\n"
 	"  -K <pem_file>   uses the SSL private key in this file (default: key.pem)\n"
 	"  -X <pem_file>   uses the certificate from this file (default: cert.pem)\n"
-#endif
-	"  -s <config_file> save the current configuration to file\n\n"
-	"  -f <config_file> load the current configuration from file; all switches\n"
-	"                  specified from the command line are ignored\n\n"
-	"  -h              print this help screen\n\n";
+			#endif
+			"  -s <config_file> save the current configuration to file\n\n"
+			"  -f <config_file> load the current configuration from file; all switches\n"
+			"                  specified from the command line are ignored\n\n"
+			"  -h              print this help screen\n\n";
 
-	(void)fprintf(f, "RPCAPD, a remote packet capture daemon.\n"
-	"Compiled with %s\n", pcap_lib_version());
+	(void) fprintf(f, "RPCAPD, a remote packet capture daemon.\n"
+					  "Compiled with %s\n", pcap_lib_version());
 #if defined(HAVE_OPENSSL) && defined(SSLEAY_VERSION)
 	(void)fprintf(f, "Compiled with %s\n", SSLeay_version(SSLEAY_VERSION));
 #endif
-	(void)fprintf(f, "\n%s", usagetext);
+	(void) fprintf(f, "\n%s", usagetext);
 }
 
 
-
 //! Program main
-int main(int argc, char *argv[])
-{
-	char savefile[MAX_LINE + 1];		// name of the file on which we have to save the configuration
-	int log_to_systemlog = 0;		// Non-zero if we should log to the "system log" rather than the standard error
-	int isdaemon = 0;			// Non-zero if the user wants to run this program as a daemon
-#ifndef _WIN32
-	int isrunbyinetd = 0;			// Non-zero if this is being run by inetd or something inetd-like
-#endif
-	int log_debug_messages = 0;		// Non-zero if the user wants debug messages logged
-	int retval;				// keeps the returning value from several functions
-	char errbuf[PCAP_ERRBUF_SIZE + 1];	// keeps the error string, prior to be printed
-#ifndef _WIN32
+int main(int argc, char *argv[]) {
+	char savefile[MAX_LINE + 1];        // name of the file on which we have to save the configuration
+	int log_to_systemlog = 0;        // Non-zero if we should log to the "system log" rather than the standard error
+	int isdaemon = 0;            // Non-zero if the user wants to run this program as a daemon
+	int isrunbyinetd = 0;            // Non-zero if this is being run by inetd or something inetd-like
+	int log_debug_messages = 0;        // Non-zero if the user wants debug messages logged
+	int retval;                // keeps the returning value from several functions
+	char errbuf[PCAP_ERRBUF_SIZE + 1];    // keeps the error string, prior to be printed
 	struct sigaction action;
-#endif
 #ifdef HAVE_OPENSSL
 	int enable_compression = 0;
 #endif
@@ -197,14 +176,14 @@ int main(int argc, char *argv[])
 	// Initialize errbuf
 	memset(errbuf, 0, sizeof(errbuf));
 
-	pcap_strlcpy(address, RPCAP_DEFAULT_NETADDR, sizeof (address));
-	pcap_strlcpy(port, RPCAP_DEFAULT_NETPORT, sizeof (port));
+	pcap_strlcpy(address, RPCAP_DEFAULT_NETADDR, sizeof(address));
+	pcap_strlcpy(port, RPCAP_DEFAULT_NETPORT, sizeof(port));
 
 	// Prepare to open a new server socket
 	memset(&mainhints, 0, sizeof(struct addrinfo));
 
 	mainhints.ai_family = PF_UNSPEC;
-	mainhints.ai_flags = AI_PASSIVE;	// Ready to a bind() socket
+	mainhints.ai_flags = AI_PASSIVE;    // Ready to a bind() socket
 	mainhints.ai_socktype = SOCK_STREAM;
 
 	// Getting the proper command line options
@@ -216,25 +195,23 @@ int main(int argc, char *argv[])
 
 #	define CLOPTS "b:dDhip:4l:na:s:f:t:v" SSL_CLOPTS
 
-	while ((retval = getopt(argc, argv, CLOPTS)) != -1)
-	{
-		switch (retval)
-		{
+	while ((retval = getopt(argc, argv, CLOPTS)) != -1) {
+		switch (retval) {
 			case 'D':
 				log_debug_messages = 1;
 				rpcapd_log_set(log_to_systemlog, log_debug_messages);
 				break;
 			case 'b':
-				pcap_strlcpy(address, optarg, sizeof (address));
+				pcap_strlcpy(address, optarg, sizeof(address));
 				break;
 			case 'p':
-				pcap_strlcpy(port, optarg, sizeof (port));
+				pcap_strlcpy(port, optarg, sizeof(port));
 				break;
 			case 't':
-				pcap_strlcpy(data_port, optarg, sizeof (data_port));
+				pcap_strlcpy(data_port, optarg, sizeof(data_port));
 				break;
 			case '4':
-				mainhints.ai_family = PF_INET;		// IPv4 server only
+				mainhints.ai_family = PF_INET;        // IPv4 server only
 				break;
 			case 'd':
 				isdaemon = 1;
@@ -242,14 +219,9 @@ int main(int argc, char *argv[])
 				rpcapd_log_set(log_to_systemlog, log_debug_messages);
 				break;
 			case 'i':
-#ifdef _WIN32
-				printusage(stderr);
-				exit(1);
-#else
 				isrunbyinetd = 1;
 				log_to_systemlog = 1;
 				rpcapd_log_set(log_to_systemlog, log_debug_messages);
-#endif
 				break;
 			case 'n':
 				nullAuthAllowed = 1;
@@ -257,29 +229,26 @@ int main(int argc, char *argv[])
 			case 'v':
 				passivemode = 0;
 				break;
-			case 'l':
-			{
+			case 'l': {
 				pcap_strlcpy(hostlist, optarg, sizeof(hostlist));
 				break;
 			}
-			case 'a':
-			{
+			case 'a': {
 				char *tmpaddress, *tmpport;
 				char *lasts;
 				int i = 0;
 
 				tmpaddress = pcap_strtok_r(optarg, RPCAP_HOSTLIST_SEP, &lasts);
 
-				while ((tmpaddress != NULL) && (i < MAX_ACTIVE_LIST))
-				{
+				while ((tmpaddress != NULL) && (i < MAX_ACTIVE_LIST)) {
 					tmpport = pcap_strtok_r(NULL, RPCAP_HOSTLIST_SEP, &lasts);
 
-					pcap_strlcpy(activelist[i].address, tmpaddress, sizeof (activelist[i].address));
+					pcap_strlcpy(activelist[i].address, tmpaddress, sizeof(activelist[i].address));
 
 					if ((tmpport == NULL) || (strcmp(tmpport, "DEFAULT") == 0)) // the user choose a custom port
-						pcap_strlcpy(activelist[i].port, RPCAP_DEFAULT_NETPORT_ACTIVE, sizeof (activelist[i].port));
+						pcap_strlcpy(activelist[i].port, RPCAP_DEFAULT_NETPORT_ACTIVE, sizeof(activelist[i].port));
 					else
-						pcap_strlcpy(activelist[i].port, tmpport, sizeof (activelist[i].port));
+						pcap_strlcpy(activelist[i].port, tmpport, sizeof(activelist[i].port));
 
 					tmpaddress = pcap_strtok_r(NULL, RPCAP_HOSTLIST_SEP, &lasts);
 
@@ -294,24 +263,24 @@ int main(int argc, char *argv[])
 				break;
 			}
 			case 'f':
-				pcap_strlcpy(loadfile, optarg, sizeof (loadfile));
+				pcap_strlcpy(loadfile, optarg, sizeof(loadfile));
 				break;
 			case 's':
-				pcap_strlcpy(savefile, optarg, sizeof (savefile));
+				pcap_strlcpy(savefile, optarg, sizeof(savefile));
 				break;
 #ifdef HAVE_OPENSSL
-			case 'S':
-				uses_ssl = 1;
-				break;
-			case 'C':
-				enable_compression = 1;
-				break;
-			case 'K':
-				ssl_set_keyfile(optarg);
-				break;
-			case 'X':
-				ssl_set_certfile(optarg);
-				break;
+				case 'S':
+					uses_ssl = 1;
+					break;
+				case 'C':
+					enable_compression = 1;
+					break;
+				case 'K':
+					ssl_set_keyfile(optarg);
+					break;
+				case 'X':
+					ssl_set_certfile(optarg);
+					break;
 #endif
 			case 'h':
 				printusage(stdout);
@@ -323,26 +292,21 @@ int main(int argc, char *argv[])
 		}
 	}
 
-#ifndef _WIN32
-	if (isdaemon && isrunbyinetd)
-	{
+	if (isdaemon && isrunbyinetd) {
 		rpcapd_log(LOGPRIO_ERROR, "rpcapd: -d and -i can't be used together");
 		exit(1);
 	}
-#endif
 
 	//
 	// We want UTF-8 error messages.
 	//
-	if (pcap_init(PCAP_CHAR_ENC_UTF_8, errbuf) == -1)
-	{
+	if (pcap_init(PCAP_CHAR_ENC_UTF_8, errbuf) == -1) {
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 		exit(-1);
 	}
 	pcap_fmt_set_encoding(PCAP_CHAR_ENC_UTF_8);
 
-	if (sock_init(errbuf, PCAP_ERRBUF_SIZE) == -1)
-	{
+	if (sock_init(errbuf, PCAP_ERRBUF_SIZE) == -1) {
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 		exit(-1);
 	}
@@ -354,37 +318,12 @@ int main(int argc, char *argv[])
 	if (loadfile[0])
 		fileconf_read();
 
-#ifdef _WIN32
-	//
-	// Create a handle to signal the main loop to tell it to do
-	// something.
-	//
-	state_change_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-	if (state_change_event == NULL)
-	{
-		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-		    "Can't create state change event");
-		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-		exit(2);
-	}
-
-	//
-	// Catch control signals.
-	//
-	if (!SetConsoleCtrlHandler(main_ctrl_event, TRUE))
-	{
-		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-		    "Can't set control handler");
-		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-		exit(2);
-	}
-#else
-	memset(&action, 0, sizeof (action));
+	memset(&action, 0, sizeof(action));
 	action.sa_handler = main_terminate;
 	action.sa_flags = 0;
 	sigemptyset(&action.sa_mask);
 	sigaction(SIGTERM, &action, NULL);
-	memset(&action, 0, sizeof (action));
+	memset(&action, 0, sizeof(action));
 	action.sa_handler = main_reap_children;
 	action.sa_flags = 0;
 	sigemptyset(&action.sa_mask);
@@ -392,22 +331,19 @@ int main(int argc, char *argv[])
 	// Ignore SIGPIPE - we'll get EPIPE when trying to write to a closed
 	// connection, we don't want to get killed by a signal in that case
 	signal(SIGPIPE, SIG_IGN);
-#endif
 
 # ifdef HAVE_OPENSSL
 	if (uses_ssl) {
 		if (ssl_init_once(1, enable_compression, errbuf, PCAP_ERRBUF_SIZE) < 0)
 		{
 			rpcapd_log(LOGPRIO_ERROR, "Can't initialize SSL: %s",
-			    errbuf);
+				errbuf);
 			exit(2);
 		}
 	}
 # endif
 
-#ifndef _WIN32
-	if (isrunbyinetd)
-	{
+	if (isrunbyinetd) {
 		//
 		// -i was specified, indicating that this is being run
 		// by inetd or something that can run network daemons
@@ -426,10 +362,9 @@ int main(int argc, char *argv[])
 		// Duplicate the standard input as the control socket.
 		//
 		sockctrl = dup(0);
-		if (sockctrl == -1)
-		{
+		if (sockctrl == -1) {
 			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-			    "Can't dup standard input");
+						   "Can't dup standard input");
 			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 			exit(2);
 		}
@@ -439,14 +374,13 @@ int main(int argc, char *argv[])
 		// to /dev/null.
 		//
 		devnull_fd = open("/dev/null", O_RDWR);
-		if (devnull_fd != -1)
-		{
+		if (devnull_fd != -1) {
 			//
 			// If this fails, just drive on.
 			//
-			(void)dup2(devnull_fd, 0);
-			(void)dup2(devnull_fd, 1);
-			(void)dup2(devnull_fd, 2);
+			(void) dup2(devnull_fd, 0);
+			(void) dup2(devnull_fd, 1);
+			(void) dup2(devnull_fd, 2);
 			close(devnull_fd);
 		}
 
@@ -456,29 +390,25 @@ int main(int argc, char *argv[])
 		// told by the client to close.
 		//
 		char *hostlist_copy = strdup(hostlist);
-		if (hostlist_copy == NULL)
-		{
+		if (hostlist_copy == NULL) {
 			rpcapd_log(LOGPRIO_ERROR, "Out of memory copying the host/port list");
 			exit(0);
 		}
-		(void)daemon_serviceloop(sockctrl, 0, hostlist_copy,
-		    nullAuthAllowed, data_port, uses_ssl);
+		(void) daemon_serviceloop(sockctrl, 0, hostlist_copy,
+								  nullAuthAllowed, data_port, uses_ssl);
 
 		//
 		// Nothing more to do.
 		//
 		exit(0);
 	}
-#endif
 
-	if (isdaemon)
-	{
+	if (isdaemon) {
 		//
 		// This is being run as a daemon.
 		// On UN*X, it might be manually run, or run from an
 		// rc file.
 		//
-#ifndef _WIN32
 		int pid;
 
 		//
@@ -487,21 +417,21 @@ int main(int argc, char *argv[])
 		// Unix Network Programming, pg 336
 		//
 		if ((pid = fork()) != 0)
-			exit(0);		// Parent terminates
+			exit(0);        // Parent terminates
 
 		// First child continues
 		// Set daemon mode
 		setsid();
 
 		// generated under unix with 'kill -HUP', needed to reload the configuration
-		memset(&action, 0, sizeof (action));
+		memset(&action, 0, sizeof(action));
 		action.sa_handler = main_reread_config;
 		action.sa_flags = 0;
 		sigemptyset(&action.sa_mask);
 		sigaction(SIGHUP, &action, NULL);
 
 		if ((pid = fork()) != 0)
-			exit(0);		// First child terminates
+			exit(0);        // First child terminates
 
 		// LINUX WARNING: the current linux implementation of pthreads requires a management thread
 		// to handle some hidden stuff. So, as soon as you create the first thread, two threads are
@@ -511,24 +441,10 @@ int main(int argc, char *argv[])
 		// Second child continues
 //		umask(0);
 //		chdir("/");
-#else
-		//
-		// This is being run as a service on Windows.
-		//
-		// If this call succeeds, it is blocking on Win32
-		//
-		if (!svc_start())
-			rpcapd_log(LOGPRIO_DEBUG, "Unable to start the service");
-
-		// When the previous call returns, the entire application has to be stopped.
-		exit(0);
-#endif
-	}
-	else	// Console mode
+	} else    // Console mode
 	{
-#ifndef _WIN32
 		// Enable the catching of Ctrl+C
-		memset(&action, 0, sizeof (action));
+		memset(&action, 0, sizeof(action));
 		action.sa_handler = main_terminate;
 		action.sa_flags = 0;
 		sigemptyset(&action.sa_mask);
@@ -536,12 +452,11 @@ int main(int argc, char *argv[])
 
 		// generated under unix with 'kill -HUP', needed to reload the configuration
 		// We do not have this kind of signal in Win32
-		memset(&action, 0, sizeof (action));
+		memset(&action, 0, sizeof(action));
 		action.sa_handler = main_reread_config;
 		action.sa_flags = 0;
 		sigemptyset(&action.sa_mask);
 		sigaction(SIGHUP, &action, NULL);
-#endif
 
 		printf("Press CTRL + C to stop the server...\n");
 	}
@@ -554,42 +469,25 @@ int main(int argc, char *argv[])
 	exit(0);
 }
 
-void main_startup(void)
-{
-	char errbuf[PCAP_ERRBUF_SIZE + 1];	// keeps the error string, prior to be printed
-	struct addrinfo *addrinfo;		// keeps the addrinfo chain; required to open a new socket
+void main_startup(void) {
+	char errbuf[PCAP_ERRBUF_SIZE + 1];    // keeps the error string, prior to be printed
+	struct addrinfo *addrinfo;        // keeps the addrinfo chain; required to open a new socket
 	int i;
-#ifdef _WIN32
-	HANDLE threadId;			// handle for the subthread
-#else
 	pid_t pid;
-#endif
 
 	i = 0;
 	addrinfo = NULL;
 	memset(errbuf, 0, sizeof(errbuf));
 
 	// Starts all the active threads
-	while ((i < MAX_ACTIVE_LIST) && (activelist[i].address[0] != 0))
-	{
+	while ((i < MAX_ACTIVE_LIST) && (activelist[i].address[0] != 0)) {
 		activelist[i].ai_family = mainhints.ai_family;
 
-#ifdef _WIN32
-		threadId = (HANDLE)_beginthreadex(NULL, 0, main_active,
-		    (void *)&activelist[i], 0, NULL);
-		if (threadId == 0)
-		{
-			rpcapd_log(LOGPRIO_DEBUG, "Error creating the active child threads");
-			continue;
-		}
-		CloseHandle(threadId);
-#else
-		if ((pid = fork()) == 0)	// I am the child
+		if ((pid = fork()) == 0)    // I am the child
 		{
 			main_active((void *) &activelist[i]);
 			exit(0);
 		}
-#endif
 		i++;
 	}
 
@@ -605,69 +503,63 @@ void main_startup(void)
 	 * terminates. The user has always to press Ctrl+C (or send a
 	 * SIGTERM) to terminate the program.
 	 */
-	if (passivemode)
-	{
+	if (passivemode) {
 		struct addrinfo *tempaddrinfo;
 
 		//
 		// Get a list of sockets on which to listen.
 		//
-		if (sock_initaddress((address[0]) ? address : NULL, port, &mainhints, &addrinfo, errbuf, PCAP_ERRBUF_SIZE) == -1)
-		{
+		if (sock_initaddress((address[0]) ? address : NULL, port, &mainhints, &addrinfo, errbuf, PCAP_ERRBUF_SIZE) ==
+			-1) {
 			rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
 			return;
 		}
 
 		for (tempaddrinfo = addrinfo; tempaddrinfo;
-		     tempaddrinfo = tempaddrinfo->ai_next)
-		{
+			 tempaddrinfo = tempaddrinfo->ai_next) {
 			SOCKET sock;
 			struct listen_sock *sock_info;
 
-			if ((sock = sock_open(NULL, tempaddrinfo, SOCKOPEN_SERVER, SOCKET_MAXCONN, errbuf, PCAP_ERRBUF_SIZE)) == INVALID_SOCKET)
-			{
-				switch (tempaddrinfo->ai_family)
-				{
-				case AF_INET:
-				{
-					struct sockaddr_in *in;
-					char addrbuf[INET_ADDRSTRLEN];
+			if ((sock = sock_open(NULL, tempaddrinfo, SOCKOPEN_SERVER, SOCKET_MAXCONN, errbuf, PCAP_ERRBUF_SIZE)) ==
+				INVALID_SOCKET) {
+				switch (tempaddrinfo->ai_family) {
+					case AF_INET: {
+						struct sockaddr_in *in;
+						char addrbuf[INET_ADDRSTRLEN];
 
-					in = (struct sockaddr_in *)tempaddrinfo->ai_addr;
-					rpcapd_log(LOGPRIO_WARNING, "Can't listen on socket for %s:%u: %s",
-					    inet_ntop(AF_INET, &in->sin_addr,
-						addrbuf, sizeof (addrbuf)),
-					    ntohs(in->sin_port),
-					    errbuf);
-					break;
-				}
+						in = (struct sockaddr_in *) tempaddrinfo->ai_addr;
+						rpcapd_log(LOGPRIO_WARNING, "Can't listen on socket for %s:%u: %s",
+								   inet_ntop(AF_INET, &in->sin_addr,
+											 addrbuf, sizeof(addrbuf)),
+								   ntohs(in->sin_port),
+								   errbuf);
+						break;
+					}
 
-				case AF_INET6:
-				{
-					struct sockaddr_in6 *in6;
-					char addrbuf[INET6_ADDRSTRLEN];
+					case AF_INET6: {
+						struct sockaddr_in6 *in6;
+						char addrbuf[INET6_ADDRSTRLEN];
 
-					in6 = (struct sockaddr_in6 *)tempaddrinfo->ai_addr;
-					rpcapd_log(LOGPRIO_WARNING, "Can't listen on socket for %s:%u: %s",
-					    inet_ntop(AF_INET6, &in6->sin6_addr,
-						addrbuf, sizeof (addrbuf)),
-					    ntohs(in6->sin6_port),
-					    errbuf);
-					break;
-				}
+						in6 = (struct sockaddr_in6 *) tempaddrinfo->ai_addr;
+						rpcapd_log(LOGPRIO_WARNING, "Can't listen on socket for %s:%u: %s",
+								   inet_ntop(AF_INET6, &in6->sin6_addr,
+											 addrbuf, sizeof(addrbuf)),
+								   ntohs(in6->sin6_port),
+								   errbuf);
+						break;
+					}
 
-				default:
-					rpcapd_log(LOGPRIO_WARNING, "Can't listen on socket for address family %u: %s",
-					    tempaddrinfo->ai_family,
-					    errbuf);
-					break;
+					default:
+						rpcapd_log(LOGPRIO_WARNING, "Can't listen on socket for address family %u: %s",
+								   tempaddrinfo->ai_family,
+								   errbuf);
+						break;
 				}
 				continue;
 			}
 
-			sock_info = (struct listen_sock *) malloc(sizeof (struct listen_sock));
-			if (sock_info == NULL)
-			{
+			sock_info = (struct listen_sock *) malloc(sizeof(struct listen_sock));
+			if (sock_info == NULL) {
 				rpcapd_log(LOGPRIO_ERROR, "Can't allocate structure for listen socket");
 				exit(2);
 			}
@@ -678,8 +570,7 @@ void main_startup(void)
 
 		freeaddrinfo(addrinfo);
 
-		if (listen_socks == NULL)
-		{
+		if (listen_socks == NULL) {
 			rpcapd_log(LOGPRIO_ERROR, "Can't listen on any address");
 			exit(2);
 		}
@@ -695,7 +586,6 @@ void main_startup(void)
 	//
 	rpcapd_log(LOGPRIO_DEBUG, PROGRAM_NAME " is closing.\n");
 
-#ifndef _WIN32
 	//
 	// Sends a KILL signal to all the processes in this process's
 	// process group; i.e., it kills all the child processes
@@ -705,7 +595,6 @@ void main_startup(void)
 	// that may cause a message to be printed or logged.
 	//
 	kill(0, SIGKILL);
-#endif
 
 	//
 	// Just leave.  We shouldn't need to clean up sockets or
@@ -729,88 +618,7 @@ void main_startup(void)
 	exit(0);
 }
 
-#ifdef _WIN32
-static void
-send_state_change_event(void)
-{
-	char errbuf[PCAP_ERRBUF_SIZE + 1];	// keeps the error string, prior to be printed
-
-	if (!SetEvent(state_change_event))
-	{
-		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-		    "SetEvent on shutdown event failed");
-		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-	}
-}
-
-void
-send_shutdown_notification(void)
-{
-	//
-	// Indicate that the server should shut down.
-	//
-	shutdown_server = 1;
-
-	//
-	// Send a state change event, to wake up WSAWaitForMultipleEvents().
-	//
-	send_state_change_event();
-}
-
-void
-send_reread_configuration_notification(void)
-{
-	//
-	// Indicate that the server should re-read its configuration file.
-	//
-	reread_config = 1;
-
-	//
-	// Send a state change event, to wake up WSAWaitForMultipleEvents().
-	//
-	send_state_change_event();
-}
-
-static BOOL WINAPI main_ctrl_event(DWORD ctrltype)
-{
-	//
-	// ctrltype is one of:
-	//
-	// CTRL_C_EVENT - we got a ^C; this is like SIGINT
-	// CTRL_BREAK_EVENT - we got Ctrl+Break
-	// CTRL_CLOSE_EVENT - the console was closed; this is like SIGHUP
-	// CTRL_LOGOFF_EVENT - a user is logging off; this is received
-	//   only by services
-	// CTRL_SHUTDOWN_EVENT - the systemis shutting down; this is
-	//   received only by services
-	//
-	// For now, we treat all but CTRL_LOGOFF_EVENT as indications
-	// that we should shut down.
-	//
-	switch (ctrltype)
-	{
-		case CTRL_C_EVENT:
-		case CTRL_BREAK_EVENT:
-		case CTRL_CLOSE_EVENT:
-		case CTRL_SHUTDOWN_EVENT:
-			//
-			// Set a shutdown notification.
-			//
-			send_shutdown_notification();
-			break;
-
-		default:
-			break;
-	}
-
-	//
-	// We handled this.
-	//
-	return TRUE;
-}
-#else
-static void main_terminate(int sign _U_)
-{
+static void main_terminate(int sign _U_) {
 	//
 	// Note that the server should shut down.
 	// select() should get an EINTR error when we return,
@@ -819,8 +627,7 @@ static void main_terminate(int sign _U_)
 	shutdown_server = 1;
 }
 
-static void main_reread_config(int sign _U_)
-{
+static void main_reread_config(int sign _U_) {
 	//
 	// Note that the server should re-read its configuration file.
 	// select() should get an EINTR error when we return,
@@ -829,8 +636,7 @@ static void main_reread_config(int sign _U_)
 	reread_config = 1;
 }
 
-static void main_reap_children(int sign _U_)
-{
+static void main_reap_children(int sign _U_) {
 	pid_t pid;
 	int exitstat;
 
@@ -842,166 +648,12 @@ static void main_reap_children(int sign _U_)
 
 	return;
 }
-#endif
 
 //
 // Loop waiting for incoming connections and accepting them.
 //
 static void
-accept_connections(void)
-{
-#ifdef _WIN32
-	struct listen_sock *sock_info;
-	DWORD num_events;
-	WSAEVENT *events;
-	int i;
-	char errbuf[PCAP_ERRBUF_SIZE + 1];	// keeps the error string, prior to be printed
-
-	//
-	// How big does the set of events need to be?
-	// One for the shutdown event, plus one for every socket on which
-	// we'll be listening.
-	//
-	num_events = 1;		// shutdown event
-	for (sock_info = listen_socks; sock_info;
-	    sock_info = sock_info->next)
-	{
-		if (num_events == WSA_MAXIMUM_WAIT_EVENTS)
-		{
-			//
-			// WSAWaitForMultipleEvents() doesn't support
-			// more than WSA_MAXIMUM_WAIT_EVENTS events
-			// on which to wait.
-			//
-			rpcapd_log(LOGPRIO_ERROR, "Too many sockets on which to listen");
-			exit(2);
-		}
-		num_events++;
-	}
-
-	//
-	// Allocate the array of events.
-	//
-	events = (WSAEVENT *) malloc(num_events * sizeof (WSAEVENT));
-	if (events == NULL)
-	{
-		rpcapd_log(LOGPRIO_ERROR, "Can't allocate array of events which to listen");
-		exit(2);
-	}
-
-	//
-	// Fill it in.
-	//
-	events[0] = state_change_event;	// state change event first
-	for (sock_info = listen_socks, i = 1; sock_info;
-	    sock_info = sock_info->next, i++)
-	{
-		WSAEVENT event;
-
-		//
-		// Create an event that is signaled if there's a connection
-		// to accept on the socket in question.
-		//
-		event = WSACreateEvent();
-		if (event == WSA_INVALID_EVENT)
-		{
-			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-			    "Can't create socket event");
-			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-			exit(2);
-		}
-		if (WSAEventSelect(sock_info->sock, event, FD_ACCEPT) == SOCKET_ERROR)
-		{
-			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-			    "Can't setup socket event");
-			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-			exit(2);
-		}
-		events[i] = event;
-	}
-
-	for (;;)
-	{
-		//
-		// Wait for incoming connections.
-		//
-		DWORD ret;
-
-		ret = WSAWaitForMultipleEvents(num_events, events, FALSE,
-		    WSA_INFINITE, FALSE);
-		if (ret == WSA_WAIT_FAILED)
-		{
-			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-			    "WSAWaitForMultipleEvents failed");
-			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-			exit(2);
-		}
-
-		if (ret == WSA_WAIT_EVENT_0)
-		{
-			//
-			// The state change event was set.
-			//
-			if (shutdown_server)
-			{
-				//
-				// Time to quit. Exit the loop.
-				//
-				break;
-			}
-			if (reread_config)
-			{
-				//
-				// We should re-read the configuration
-				// file.
-				//
-				reread_config = 0;	// clear the indicator
-				fileconf_read();
-			}
-		}
-
-		//
-		// Check each socket.
-		//
-		for (sock_info = listen_socks, i = 1; sock_info;
-		    sock_info = sock_info->next, i++)
-		{
-			WSANETWORKEVENTS network_events;
-
-			if (WSAEnumNetworkEvents(sock_info->sock,
-			    events[i], &network_events) == SOCKET_ERROR)
-			{
-				sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-				    "WSAEnumNetworkEvents failed");
-				rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-				exit(2);
-			}
-			if (network_events.lNetworkEvents & FD_ACCEPT)
-			{
-				//
-				// Did an error occur?
-				//
-				if (network_events.iErrorCode[FD_ACCEPT_BIT] != 0)
-				{
-					//
-					// Yes - report it and keep going.
-					//
-					sock_fmterrmsg(errbuf,
-					    PCAP_ERRBUF_SIZE,
-					    network_events.iErrorCode[FD_ACCEPT_BIT],
-					    "Socket error");
-					rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-					continue;
-				}
-
-				//
-				// Accept the connection.
-				//
-				accept_connection(sock_info->sock);
-			}
-		}
-	}
-#else
+accept_connections(void) {
 	struct listen_sock *sock_info;
 	int num_sock_fds;
 
@@ -1010,13 +662,10 @@ accept_connections(void)
 	// to be?
 	//
 	num_sock_fds = 0;
-	for (sock_info = listen_socks; sock_info; sock_info = sock_info->next)
-	{
-		if (sock_info->sock + 1 > num_sock_fds)
-		{
-			if ((unsigned int)(sock_info->sock + 1) >
-			    (unsigned int)FD_SETSIZE)
-			{
+	for (sock_info = listen_socks; sock_info; sock_info = sock_info->next) {
+		if (sock_info->sock + 1 > num_sock_fds) {
+			if ((unsigned int) (sock_info->sock + 1) >
+				(unsigned int) FD_SETSIZE) {
 				rpcapd_log(LOGPRIO_ERROR, "Socket FD is too bit for an fd_set");
 				exit(2);
 			}
@@ -1024,8 +673,7 @@ accept_connections(void)
 		}
 	}
 
-	for (;;)
-	{
+	for (;;) {
 		fd_set sock_fds;
 		int ret;
 
@@ -1038,8 +686,7 @@ accept_connections(void)
 		//
 		FD_ZERO(&sock_fds);
 		for (sock_info = listen_socks; sock_info;
-		    sock_info = sock_info->next)
-		{
+			 sock_info = sock_info->next) {
 			FD_SET(sock_info->sock, &sock_fds);
 		}
 
@@ -1047,29 +694,25 @@ accept_connections(void)
 		// Wait for incoming connections.
 		//
 		ret = select(num_sock_fds, &sock_fds, NULL, NULL, NULL);
-		if (ret == -1)
-		{
-			if (errno == EINTR)
-			{
+		if (ret == -1) {
+			if (errno == EINTR) {
 				//
 				// If this is a "terminate the
 				// server" signal, exit the loop,
 				// otherwise just keep trying.
 				//
-				if (shutdown_server)
-				{
+				if (shutdown_server) {
 					//
 					// Time to quit.  Exit the loop.
 					//
 					break;
 				}
-				if (reread_config)
-				{
+				if (reread_config) {
 					//
 					// We should re-read the configuration
 					// file.
 					//
-					reread_config = 0;	// clear the indicator
+					reread_config = 0;    // clear the indicator
 					fileconf_read();
 				}
 
@@ -1077,11 +720,9 @@ accept_connections(void)
 				// Go back and wait again.
 				//
 				continue;
-			}
-			else
-			{
+			} else {
 				rpcapd_log(LOGPRIO_ERROR, "select failed: %s",
-				    strerror(errno));
+						   strerror(errno));
 				exit(2);
 			}
 		}
@@ -1090,10 +731,8 @@ accept_connections(void)
 		// Check each socket.
 		//
 		for (sock_info = listen_socks; sock_info;
-		    sock_info = sock_info->next)
-		{
-			if (FD_ISSET(sock_info->sock, &sock_fds))
-			{
+			 sock_info = sock_info->next) {
+			if (FD_ISSET(sock_info->sock, &sock_fds)) {
 				//
 				// Accept the connection.
 				//
@@ -1101,64 +740,39 @@ accept_connections(void)
 			}
 		}
 	}
-#endif
 
 	//
 	// Close all the listen sockets.
 	//
-	for (sock_info = listen_socks; sock_info; sock_info = sock_info->next)
-	{
+	for (sock_info = listen_socks; sock_info; sock_info = sock_info->next) {
 		closesocket(sock_info->sock);
 	}
 	sock_cleanup();
 }
-
-#ifdef _WIN32
-//
-// A structure to hold the parameters to the daemon service loop
-// thread on Windows.
-//
-// (On UN*X, there is no need for this explicit copy since the
-// fork "inherits" the parent stack.)
-//
-struct params_copy {
-	SOCKET sockctrl;
-	char *hostlist;
-};
-#endif
 
 //
 // Accept a connection and start a worker thread, on Windows, or a
 // worker process, on UN*X, to handle the connection.
 //
 static void
-accept_connection(SOCKET listen_sock)
-{
-	char errbuf[PCAP_ERRBUF_SIZE + 1];	// keeps the error string, prior to be printed
-	SOCKET sockctrl;			// keeps the socket ID for this control connection
-	struct sockaddr_storage from;		// generic sockaddr_storage variable
-	socklen_t fromlen;			// keeps the length of the sockaddr_storage variable
+accept_connection(SOCKET listen_sock) {
+	char errbuf[PCAP_ERRBUF_SIZE + 1];    // keeps the error string, prior to be printed
+	SOCKET sockctrl;            // keeps the socket ID for this control connection
+	struct sockaddr_storage from;        // generic sockaddr_storage variable
+	socklen_t fromlen;            // keeps the length of the sockaddr_storage variable
 
-#ifdef _WIN32
-	HANDLE threadId;			// handle for the subthread
-	u_long off = 0;
-	struct params_copy *params_copy = NULL;
-#else
 	pid_t pid;
-#endif
 
 	// Initialize errbuf
 	memset(errbuf, 0, sizeof(errbuf));
 
-	for (;;)
-	{
+	for (;;) {
 		// Accept the connection
 		fromlen = sizeof(struct sockaddr_storage);
 
 		sockctrl = accept(listen_sock, (struct sockaddr *) &from, &fromlen);
 
-		if (sockctrl != INVALID_SOCKET)
-		{
+		if (sockctrl != INVALID_SOCKET) {
 			// Success.
 			break;
 		}
@@ -1166,107 +780,25 @@ accept_connection(SOCKET listen_sock)
 		// The accept() call can return this error when a signal is caught
 		// In this case, we have simply to ignore this error code
 		// Stevens, pg 124
-#ifdef _WIN32
-		if (WSAGetLastError() == WSAEINTR)
-#else
 		if (errno == EINTR)
-#endif
 			continue;
 
 		// Don't check for errors here, since the error can be due to the fact that the thread
 		// has been killed
 		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE, "accept() failed");
 		rpcapd_log(LOGPRIO_ERROR, "Accept of control connection from client failed: %s",
-		    errbuf);
+				   errbuf);
 		return;
 	}
 
-#ifdef _WIN32
-	//
-	// Put the socket back into blocking mode; doing WSAEventSelect()
-	// on the listen socket makes that socket non-blocking, and it
-	// appears that sockets returned from an accept() on that socket
-	// are also non-blocking.
-	//
-	// First, we have to un-WSAEventSelect() this socket, and then
-	// we can turn non-blocking mode off.
-	//
-	// If this fails, we aren't guaranteed that, for example, any
-	// of the error message will be sent - if it can't be put in
-	// the socket queue, the send will just fail.
-	//
-	// So we just log the message and close the connection.
-	//
-	if (WSAEventSelect(sockctrl, NULL, 0) == SOCKET_ERROR)
-	{
-		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-		    "WSAEventSelect() failed");
-		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-		sock_close(sockctrl, NULL, 0);
-		return;
-	}
-	if (ioctlsocket(sockctrl, FIONBIO, &off) == SOCKET_ERROR)
-	{
-		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
-		    "ioctlsocket(FIONBIO) failed");
-		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
-		sock_close(sockctrl, NULL, 0);
-		return;
-	}
-
-	//
-	// Make a copy of the host list to pass to the new thread, so that
-	// if we update it in the main thread, it won't catch us in the
-	// middle of updating it.
-	//
-	// daemon_serviceloop() will free it once it's done with it.
-	//
-	char *hostlist_copy = strdup(hostlist);
-	if (hostlist_copy == NULL)
-	{
-		rpcapd_log(LOGPRIO_ERROR, "Out of memory copying the host/port list");
-		sock_close(sockctrl, NULL, 0);
-		return;
-	}
-
-	//
-	// Allocate a location to hold the values of sockctrl.
-	// It will be freed in the newly-created thread once it's
-	// finished with it.
-	//
-	params_copy = malloc(sizeof(*params_copy));
-	if (params_copy == NULL)
-	{
-		rpcapd_log(LOGPRIO_ERROR, "Out of memory allocating the parameter copy structure");
-		free(hostlist_copy);
-		sock_close(sockctrl, NULL, 0);
-		return;
-	}
-	params_copy->sockctrl = sockctrl;
-	params_copy->hostlist = hostlist_copy;
-
-	threadId = (HANDLE)_beginthreadex(NULL, 0,
-	    main_passive_serviceloop_thread, (void *) params_copy, 0, NULL);
-	if (threadId == 0)
-	{
-		rpcapd_log(LOGPRIO_ERROR, "Error creating the child thread");
-		free(params_copy);
-		free(hostlist_copy);
-		sock_close(sockctrl, NULL, 0);
-		return;
-	}
-	CloseHandle(threadId);
-#else /* _WIN32 */
 	pid = fork();
-	if (pid == -1)
-	{
+	if (pid == -1) {
 		rpcapd_log(LOGPRIO_ERROR, "Error creating the child process: %s",
-		    strerror(errno));
+				   strerror(errno));
 		sock_close(sockctrl, NULL, 0);
 		return;
 	}
-	if (pid == 0)
-	{
+	if (pid == 0) {
 		//
 		// Child process.
 		//
@@ -1295,13 +827,12 @@ accept_connection(SOCKET listen_sock)
 		// told by the client to close.
 		//
 		char *hostlist_copy = strdup(hostlist);
-		if (hostlist_copy == NULL)
-		{
+		if (hostlist_copy == NULL) {
 			rpcapd_log(LOGPRIO_ERROR, "Out of memory copying the host/port list");
 			exit(0);
 		}
-		(void)daemon_serviceloop(sockctrl, 0, hostlist_copy,
-		    nullAuthAllowed, data_port, uses_ssl);
+		(void) daemon_serviceloop(sockctrl, 0, hostlist_copy,
+								  nullAuthAllowed, data_port, uses_ssl);
 
 		exit(0);
 	}
@@ -1309,7 +840,6 @@ accept_connection(SOCKET listen_sock)
 	// I am the parent
 	// Close the socket for this session (must be open only in the child)
 	closesocket(sockctrl);
-#endif /* _WIN32 */
 }
 
 /*!
@@ -1321,54 +851,47 @@ accept_connection(SOCKET listen_sock)
 	\param ptr: it keeps the 'activepars' parameters.  It is a 'void *'
 	just because the thread APIs want this format.
 */
-#ifdef _WIN32
-static unsigned __stdcall
-#else
 static void *
-#endif
-main_active(void *ptr)
-{
-	char errbuf[PCAP_ERRBUF_SIZE + 1];	// keeps the error string, prior to be printed
-	SOCKET sockctrl;			// keeps the socket ID for this control connection
-	struct addrinfo hints;			// temporary struct to keep settings needed to open the new socket
-	struct addrinfo *addrinfo;		// keeps the addrinfo chain; required to open a new socket
+main_active(void *ptr) {
+	char errbuf[PCAP_ERRBUF_SIZE + 1];    // keeps the error string, prior to be printed
+	SOCKET sockctrl;            // keeps the socket ID for this control connection
+	struct addrinfo hints;            // temporary struct to keep settings needed to open the new socket
+	struct addrinfo *addrinfo;        // keeps the addrinfo chain; required to open a new socket
 	struct active_pars *activepars;
 
 	activepars = (struct active_pars *) ptr;
 
 	// Prepare to open a new server socket
 	memset(&hints, 0, sizeof(struct addrinfo));
-						// WARNING Currently it supports only ONE socket family among IPv4 and IPv6
-	hints.ai_family = AF_INET;		// PF_UNSPEC to have both IPv4 and IPv6 server
+	// WARNING Currently it supports only ONE socket family among IPv4 and IPv6
+	hints.ai_family = AF_INET;        // PF_UNSPEC to have both IPv4 and IPv6 server
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_family = activepars->ai_family;
 
 	rpcapd_log(LOGPRIO_DEBUG, "Connecting to host %s, port %s, using protocol %s",
-	    activepars->address, activepars->port, (hints.ai_family == AF_INET) ? "IPv4":
-	    (hints.ai_family == AF_INET6) ? "IPv6" : "Unspecified");
+			   activepars->address, activepars->port, (hints.ai_family == AF_INET) ? "IPv4" :
+													  (hints.ai_family == AF_INET6) ? "IPv6" : "Unspecified");
 
 	// Initialize errbuf
 	memset(errbuf, 0, sizeof(errbuf));
 
 	// Do the work
-	if (sock_initaddress(activepars->address, activepars->port, &hints, &addrinfo, errbuf, PCAP_ERRBUF_SIZE) == -1)
-	{
+	if (sock_initaddress(activepars->address, activepars->port, &hints, &addrinfo, errbuf, PCAP_ERRBUF_SIZE) == -1) {
 		rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
 		return 0;
 	}
 
-	for (;;)
-	{
+	for (;;) {
 		int activeclose;
 
-		if ((sockctrl = sock_open(activepars->address, addrinfo, SOCKOPEN_CLIENT, 0, errbuf, PCAP_ERRBUF_SIZE)) == INVALID_SOCKET)
-		{
+		if ((sockctrl = sock_open(activepars->address, addrinfo, SOCKOPEN_CLIENT, 0, errbuf, PCAP_ERRBUF_SIZE)) ==
+			INVALID_SOCKET) {
 			rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
 
 			DIAG_OFF_FORMAT_TRUNCATION
 			snprintf(errbuf, PCAP_ERRBUF_SIZE, "Error connecting to host %s, port %s, using protocol %s",
-					activepars->address, activepars->port, (hints.ai_family == AF_INET) ? "IPv4":
-					(hints.ai_family == AF_INET6) ? "IPv6" : "Unspecified");
+					 activepars->address, activepars->port, (hints.ai_family == AF_INET) ? "IPv4" :
+															(hints.ai_family == AF_INET6) ? "IPv6" : "Unspecified");
 			DIAG_ON_FORMAT_TRUNCATION
 
 			rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
@@ -1379,20 +902,17 @@ main_active(void *ptr)
 		}
 
 		char *hostlist_copy = strdup(hostlist);
-		if (hostlist_copy == NULL)
-		{
+		if (hostlist_copy == NULL) {
 			rpcapd_log(LOGPRIO_ERROR, "Out of memory copying the host/port list");
 			activeclose = 0;
 			sock_close(sockctrl, NULL, 0);
-		}
-		else
-		{
+		} else {
 			//
 			// daemon_serviceloop() will free the copy.
 			//
 			activeclose = daemon_serviceloop(sockctrl, 1,
-			    hostlist_copy, nullAuthAllowed, data_port,
-			    uses_ssl);
+											 hostlist_copy, nullAuthAllowed, data_port,
+											 uses_ssl);
 		}
 
 		// If the connection is closed by the user explicitly, don't try to connect to it again
@@ -1404,24 +924,3 @@ main_active(void *ptr)
 	freeaddrinfo(addrinfo);
 	return 0;
 }
-
-#ifdef _WIN32
-//
-// Main routine of a passive-mode service thread.
-//
-unsigned __stdcall main_passive_serviceloop_thread(void *ptr)
-{
-	struct params_copy params = *(struct params_copy *)ptr;
-	free(ptr);
-
-	//
-	// Handle this client.
-	// This is passive mode, so we don't care whether we were
-	// told by the client to close.
-	//
-	(void)daemon_serviceloop(params.sockctrl, 0, params.hostlist,
-	    nullAuthAllowed, data_port, uses_ssl);
-
-	return 0;
-}
-#endif

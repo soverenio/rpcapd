@@ -31,8 +31,7 @@
  * Returns strlen(src); if retval >= dsize, truncation occurred.
  */
 size_t
-pcap_strlcpy(char * restrict dst, const char * restrict src, size_t dsize)
-{
+pcap_strlcpy(char *restrict dst, const char *restrict src, size_t dsize) {
 	const char *osrc = src;
 	size_t nleft = dsize;
 
@@ -47,10 +46,9 @@ pcap_strlcpy(char * restrict dst, const char * restrict src, size_t dsize)
 	/* Not enough room in dst, add NUL and traverse rest of src. */
 	if (nleft == 0) {
 		if (dsize != 0)
-			*dst = '\0';		/* NUL-terminate dst */
-		while (*src++)
-			;
+			*dst = '\0';        /* NUL-terminate dst */
+		while (*src++);
 	}
 
-	return(src - osrc - 1);	/* count does not include NUL */
+	return (src - osrc - 1);    /* count does not include NUL */
 }
