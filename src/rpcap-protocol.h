@@ -347,34 +347,34 @@ struct rpcap_sampling {
  * These values are used in messages sent over the network, and MUST
  * not be changed.
  */
-#define RPCAP_MSG_IS_REPLY        0x080    /* Flag indicating a reply */
+#define RPCAP_MSG_IS_REPLY        0x080        /* Flag indicating a reply */
 
-#define RPCAP_MSG_ERROR            0x01    /* Message that keeps an error notification */
-#define RPCAP_MSG_FINDALLIF_REQ        0x02    /* Request to list all the remote interfaces */
-#define RPCAP_MSG_OPEN_REQ        0x03    /* Request to open a remote device */
-#define RPCAP_MSG_STARTCAP_REQ        0x04    /* Request to start a capture on a remote device */
+#define RPCAP_MSG_ERROR                0x01    /* Message that keeps an error notification */
+#define RPCAP_MSG_FINDALLIF_REQ     0x02    /* Request to list all the remote interfaces */
+#define RPCAP_MSG_OPEN_REQ            0x03    /* Request to open a remote device */
+#define RPCAP_MSG_STARTCAP_REQ      0x04    /* Request to start a capture on a remote device */
 #define RPCAP_MSG_UPDATEFILTER_REQ    0x05    /* Send a compiled filter into the remote device */
-#define RPCAP_MSG_CLOSE            0x06    /* Close the connection with the remote peer */
-#define RPCAP_MSG_PACKET        0x07    /* This is a 'data' message, which carries a network packet */
+#define RPCAP_MSG_CLOSE                0x06    /* Close the connection with the remote peer */
+#define RPCAP_MSG_PACKET            0x07    /* This is a 'data' message, which carries a network packet */
 #define RPCAP_MSG_AUTH_REQ        0x08    /* Message that keeps the authentication parameters */
-#define RPCAP_MSG_STATS_REQ        0x09    /* It requires to have network statistics */
+#define RPCAP_MSG_STATS_REQ            0x09    /* It requires to have network statistics */
 #define RPCAP_MSG_ENDCAP_REQ        0x0A    /* Stops the current capture, keeping the device open */
-#define RPCAP_MSG_SETSAMPLING_REQ    0x0B    /* Set sampling parameters */
+#define RPCAP_MSG_SETSAMPLING_REQ   0x0B    /* Set sampling parameters */
 
-#define RPCAP_MSG_FINDALLIF_REPLY    (RPCAP_MSG_FINDALLIF_REQ | RPCAP_MSG_IS_REPLY)        /* Keeps the list of all the remote interfaces */
-#define RPCAP_MSG_OPEN_REPLY        (RPCAP_MSG_OPEN_REQ | RPCAP_MSG_IS_REPLY)        /* The remote device has been opened correctly */
-#define RPCAP_MSG_STARTCAP_REPLY    (RPCAP_MSG_STARTCAP_REQ | RPCAP_MSG_IS_REPLY)        /* The capture is starting correctly */
-#define RPCAP_MSG_UPDATEFILTER_REPLY    (RPCAP_MSG_UPDATEFILTER_REQ | RPCAP_MSG_IS_REPLY)    /* The filter has been applied correctly on the remote device */
-#define RPCAP_MSG_AUTH_REPLY        (RPCAP_MSG_AUTH_REQ | RPCAP_MSG_IS_REPLY)        /* Sends a message that says 'ok, authorization successful' */
-#define RPCAP_MSG_STATS_REPLY        (RPCAP_MSG_STATS_REQ | RPCAP_MSG_IS_REPLY)        /* Message that keeps the network statistics */
-#define RPCAP_MSG_ENDCAP_REPLY        (RPCAP_MSG_ENDCAP_REQ | RPCAP_MSG_IS_REPLY)        /* Confirms that the capture stopped successfully */
-#define RPCAP_MSG_SETSAMPLING_REPLY    (RPCAP_MSG_SETSAMPLING_REQ | RPCAP_MSG_IS_REPLY)        /* Confirms that the capture stopped successfully */
+#define RPCAP_MSG_FINDALLIF_REPLY        (RPCAP_MSG_FINDALLIF_REQ | RPCAP_MSG_IS_REPLY)      /* Keeps the list of all the remote interfaces */
+#define RPCAP_MSG_OPEN_REPLY            (RPCAP_MSG_OPEN_REQ | RPCAP_MSG_IS_REPLY)            /* The remote device has been opened correctly */
+#define RPCAP_MSG_STARTCAP_REPLY        (RPCAP_MSG_STARTCAP_REQ | RPCAP_MSG_IS_REPLY)        /* The capture is starting correctly */
+#define RPCAP_MSG_UPDATEFILTER_REPLY    (RPCAP_MSG_UPDATEFILTER_REQ | RPCAP_MSG_IS_REPLY)   /* The filter has been applied correctly on the remote device */
+#define RPCAP_MSG_AUTH_REPLY            (RPCAP_MSG_AUTH_REQ | RPCAP_MSG_IS_REPLY)            /* Sends a message that says 'ok, authorization successful' */
+#define RPCAP_MSG_STATS_REPLY            (RPCAP_MSG_STATS_REQ | RPCAP_MSG_IS_REPLY)            /* Message that keeps the network statistics */
+#define RPCAP_MSG_ENDCAP_REPLY            (RPCAP_MSG_ENDCAP_REQ | RPCAP_MSG_IS_REPLY)            /* Confirms that the capture stopped successfully */
+#define RPCAP_MSG_SETSAMPLING_REPLY        (RPCAP_MSG_SETSAMPLING_REQ | RPCAP_MSG_IS_REPLY)    /* Confirms that the capture stopped successfully */
 
 #define RPCAP_STARTCAPREQ_FLAG_PROMISC        0x00000001    /* Enables promiscuous mode (default: disabled) */
 #define RPCAP_STARTCAPREQ_FLAG_DGRAM        0x00000002    /* Use a datagram (i.e. UDP) connection for the data stream (default: use TCP)*/
-#define RPCAP_STARTCAPREQ_FLAG_SERVEROPEN    0x00000004    /* The server has to open the data connection toward the client */
-#define RPCAP_STARTCAPREQ_FLAG_INBOUND        0x00000008    /* Capture only inbound packets (take care: the flag has no effect with promiscuous enabled) */
-#define RPCAP_STARTCAPREQ_FLAG_OUTBOUND        0x00000010    /* Capture only outbound packets (take care: the flag has no effect with promiscuous enabled) */
+#define RPCAP_STARTCAPREQ_FLAG_SERVEROPEN   0x00000004    /* The server has to open the data connection toward the client */
+#define RPCAP_STARTCAPREQ_FLAG_INBOUND      0x00000008    /* Capture only inbound packets (take care: the flag has no effect with promiscuous enabled) */
+#define RPCAP_STARTCAPREQ_FLAG_OUTBOUND     0x00000010    /* Capture only outbound packets (take care: the flag has no effect with promiscuous enabled) */
 
 #define RPCAP_UPDATEFILTER_BPF 1            /* This code tells us that the filter is encoded with the BPF/NPF syntax */
 
@@ -420,10 +420,13 @@ struct rpcap_sampling {
 #include "sockutils.h"
 #include "sslutils.h"
 
-extern void rpcap_createhdr(struct rpcap_header *header, uint8_t ver, uint8_t type, uint16_t value, uint32_t length);
+extern void
+rpcap_createhdr(struct rpcap_header *header, uint8_t ver, uint8_t type,
+				uint16_t value, uint32_t length);
 
 extern const char *rpcap_msg_type_string(uint8_t type);
 
-extern int rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, uint16_t errcode, const char *error, char *errbuf);
+extern int rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, uint16_t errcode,
+						   const char *error, char *errbuf);
 
 #endif

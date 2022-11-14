@@ -45,12 +45,12 @@ extern "C" {
 void pcap_fmt_set_encoding(unsigned int);
 
 void pcap_fmt_errmsg_for_errno(char *, size_t, int,
-							   PCAP_FORMAT_STRING(const char *), ...)
+                               PCAP_FORMAT_STRING(const char *), ...)
 
 PCAP_PRINTFLIKE(4, 5);
 
 void pcap_vfmt_errmsg_for_errno(char *, size_t, int,
-								PCAP_FORMAT_STRING(const char *), va_list)
+                                PCAP_FORMAT_STRING(const char *), va_list)
 
 PCAP_PRINTFLIKE(4, 0);
 

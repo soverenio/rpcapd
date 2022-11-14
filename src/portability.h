@@ -48,7 +48,7 @@ extern "C" {
 #endif
 
 #ifdef HAVE_STRLCAT
-#define pcap_strlcat	strlcat
+#define pcap_strlcat    strlcat
 #else
 #if defined(_MSC_VER) || defined(__MINGW32__)
 /*
@@ -56,7 +56,7 @@ extern "C" {
  * Studio 2005; we require Visual Studio 2015 or later.
  */
 #define pcap_strlcat(x, y, z) \
-	strncat_s((x), (z), (y), _TRUNCATE)
+    strncat_s((x), (z), (y), _TRUNCATE)
 #else
 
 /*
@@ -68,7 +68,7 @@ extern size_t pcap_strlcat(char *restrict dst, const char *restrict src, size_t 
 #endif
 
 #ifdef HAVE_STRLCPY
-#define pcap_strlcpy	strlcpy
+#define pcap_strlcpy    strlcpy
 #else
 #if defined(_MSC_VER) || defined(__MINGW32__)
 /*
@@ -76,7 +76,7 @@ extern size_t pcap_strlcat(char *restrict dst, const char *restrict src, size_t 
  * Studio 2005; we require Visual Studio 2015 or later.
  */
 #define pcap_strlcpy(x, y, z) \
-	strncpy_s((x), (z), (y), _TRUNCATE)
+    strncpy_s((x), (z), (y), _TRUNCATE)
 #else
 
 /*
@@ -146,7 +146,7 @@ extern int pcap_vasprintf(char **, const char *, va_list ap);
 #endif /* timersub */
 
 #ifdef HAVE_STRTOK_R
-#define pcap_strtok_r	strtok_r
+#define pcap_strtok_r    strtok_r
 #else
 
 /*
