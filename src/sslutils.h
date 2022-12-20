@@ -48,7 +48,7 @@ void ssl_set_certfile(const char *certfile);
 void ssl_set_keyfile(const char *keyfile);
 
 int ssl_init_once(int is_server, int enable_compression, char *errbuf,
-                  size_t errbuflen);
+		  size_t errbuflen);
 
 SSL *ssl_promotion(int is_server, SOCKET s, char *errbuf, size_t errbuflen);
 

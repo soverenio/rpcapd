@@ -136,10 +136,10 @@
 
 /* Common header for all the RPCAP messages */
 struct rpcap_header {
-	uint8_t ver;        /* RPCAP version number */
-	uint8_t type;        /* RPCAP message type (error, findalldevs, ...) */
-	uint16_t value;        /* Message-dependent value (not always used) */
-	uint32_t plen;        /* Length of the payload of this RPCAP message */
+    uint8_t ver;        /* RPCAP version number */
+    uint8_t type;        /* RPCAP message type (error, findalldevs, ...) */
+    uint16_t value;        /* Message-dependent value (not always used) */
+    uint32_t plen;        /* Length of the payload of this RPCAP message */
 };
 
 /*
@@ -150,10 +150,10 @@ struct rpcap_header {
  * Older servers don't provide this; they support only version 0.
  */
 struct rpcap_authreply {
-	uint8_t minvers;        /* Minimum version supported */
-	uint8_t maxvers;        /* Maximum version supported */
-	uint8_t pad[2];            /* Pad to 4-byte boundary **/
-	uint32_t byte_order_magic;    /* RPCAP_BYTE_ORDER_MAGIC, in server byte order */
+    uint8_t minvers;        /* Minimum version supported */
+    uint8_t maxvers;        /* Maximum version supported */
+    uint8_t pad[2];            /* Pad to 4-byte boundary **/
+    uint32_t byte_order_magic;    /* RPCAP_BYTE_ORDER_MAGIC, in server byte order */
 };
 
 /*
@@ -168,17 +168,17 @@ struct rpcap_authreply {
  * and padding.
  */
 struct rpcap_authreply_old {
-	uint8_t minvers;    /* Minimum version supported */
-	uint8_t maxvers;    /* Maximum version supported */
+    uint8_t minvers;    /* Minimum version supported */
+    uint8_t maxvers;    /* Maximum version supported */
 };
 
 /* Format of the message for the interface description (findalldevs command) */
 struct rpcap_findalldevs_if {
-	uint16_t namelen;    /* Length of the interface name */
-	uint16_t desclen;    /* Length of the interface description */
-	uint32_t flags;        /* Interface flags */
-	uint16_t naddr;        /* Number of addresses */
-	uint16_t dummy;        /* Must be zero */
+    uint16_t namelen;    /* Length of the interface name */
+    uint16_t desclen;    /* Length of the interface description */
+    uint32_t flags;        /* Interface flags */
+    uint16_t naddr;        /* Number of addresses */
+    uint16_t dummy;        /* Must be zero */
 };
 
 /*
@@ -224,8 +224,8 @@ struct rpcap_findalldevs_if {
  * from a Windows server.)
  */
 struct rpcap_sockaddr {
-	uint16_t family;        /* Address family */
-	char data[128 - 2];    /* Data */
+    uint16_t family;        /* Address family */
+    char data[128 - 2];    /* Data */
 };
 
 /*
@@ -233,10 +233,10 @@ struct rpcap_sockaddr {
  */
 #define RPCAP_AF_INET    2        /* Value on all OSes */
 struct rpcap_sockaddr_in {
-	uint16_t family;    /* Address family */
-	uint16_t port;        /* Port number */
-	uint32_t addr;        /* IPv4 address */
-	uint8_t zero[8];    /* Padding */
+    uint16_t family;    /* Address family */
+    uint16_t port;        /* Port number */
+    uint32_t addr;        /* IPv4 address */
+    uint8_t zero[8];    /* Padding */
 };
 
 /*
@@ -244,19 +244,19 @@ struct rpcap_sockaddr_in {
  */
 #define RPCAP_AF_INET6    23        /* Value on Windows */
 struct rpcap_sockaddr_in6 {
-	uint16_t family;        /* Address family */
-	uint16_t port;        /* Port number */
-	uint32_t flowinfo;    /* IPv6 flow information */
-	uint8_t addr[16];    /* IPv6 address */
-	uint32_t scope_id;    /* Scope zone index */
+    uint16_t family;        /* Address family */
+    uint16_t port;        /* Port number */
+    uint32_t flowinfo;    /* IPv6 flow information */
+    uint8_t addr[16];    /* IPv6 address */
+    uint32_t scope_id;    /* Scope zone index */
 };
 
 /* Format of the message for the address listing (findalldevs command) */
 struct rpcap_findalldevs_ifaddr {
-	struct rpcap_sockaddr addr;        /* Network address */
-	struct rpcap_sockaddr netmask;        /* Netmask for that address */
-	struct rpcap_sockaddr broadaddr;    /* Broadcast address for that address */
-	struct rpcap_sockaddr dstaddr;        /* P2P destination address for that address */
+    struct rpcap_sockaddr addr;        /* Network address */
+    struct rpcap_sockaddr netmask;        /* Netmask for that address */
+    struct rpcap_sockaddr broadaddr;    /* Broadcast address for that address */
+    struct rpcap_sockaddr dstaddr;        /* P2P destination address for that address */
 };
 
 /*
@@ -265,23 +265,23 @@ struct rpcap_findalldevs_ifaddr {
  * This structure transfers over the network some of the values useful on the client side.
  */
 struct rpcap_openreply {
-	int32_t linktype;    /* Link type */
-	int32_t tzoff;        /* Timezone offset - not used by newer clients */
+    int32_t linktype;    /* Link type */
+    int32_t tzoff;        /* Timezone offset - not used by newer clients */
 };
 
 /* Format of the message that starts a remote capture (startcap command) */
 struct rpcap_startcapreq {
-	uint32_t snaplen;    /* Length of the snapshot (number of bytes to capture for each packet) */
-	uint32_t read_timeout;    /* Read timeout in milliseconds */
-	uint16_t flags;        /* Flags (see RPCAP_STARTCAPREQ_FLAG_xxx) */
-	uint16_t portdata;    /* Network port on which the client is waiting at (if 'serveropen') */
+    uint32_t snaplen;    /* Length of the snapshot (number of bytes to capture for each packet) */
+    uint32_t read_timeout;    /* Read timeout in milliseconds */
+    uint16_t flags;        /* Flags (see RPCAP_STARTCAPREQ_FLAG_xxx) */
+    uint16_t portdata;    /* Network port on which the client is waiting at (if 'serveropen') */
 };
 
 /* Format of the reply message that devoted to start a remote capture (startcap reply command) */
 struct rpcap_startcapreply {
-	int32_t bufsize;    /* Size of the user buffer allocated by WinPcap; it can be different from the one we chose */
-	uint16_t portdata;    /* Network port on which the server is waiting at (passive mode only) */
-	uint16_t dummy;        /* Must be zero */
+    int32_t bufsize;    /* Size of the user buffer allocated by WinPcap; it can be different from the one we chose */
+    uint16_t portdata;    /* Network port on which the server is waiting at (passive mode only) */
+    uint16_t dummy;        /* Must be zero */
 };
 
 /*
@@ -291,54 +291,54 @@ struct rpcap_startcapreply {
  * more information across the network in the future (for example statistics, and kind like that).
  */
 struct rpcap_pkthdr {
-	/*
-	 * This protocol needs to be updated with a new version before
-	 * 2038-01-19 03:14:07 UTC.
-	 */
-	uint32_t timestamp_sec;        /* 'struct timeval' compatible, it represents the 'tv_sec' field */
-	uint32_t timestamp_usec;    /* 'struct timeval' compatible, it represents the 'tv_usec' field */
-	uint32_t caplen;        /* Length of portion present in the capture */
-	uint32_t len;            /* Real length of this packet (off wire) */
-	uint32_t npkt;            /* Ordinal number of the packet (i.e. the first one captured has '1', the second one '2', etc) */
+    /*
+     * This protocol needs to be updated with a new version before
+     * 2038-01-19 03:14:07 UTC.
+     */
+    uint32_t timestamp_sec;        /* 'struct timeval' compatible, it represents the 'tv_sec' field */
+    uint32_t timestamp_usec;    /* 'struct timeval' compatible, it represents the 'tv_usec' field */
+    uint32_t caplen;        /* Length of portion present in the capture */
+    uint32_t len;            /* Real length of this packet (off wire) */
+    uint32_t npkt;            /* Ordinal number of the packet (i.e. the first one captured has '1', the second one '2', etc) */
 };
 
 /* General header used for the pcap_setfilter() command; keeps just the number of BPF instructions */
 struct rpcap_filter {
-	uint16_t filtertype;    /* type of the filter transferred (BPF instructions, ...) */
-	uint16_t dummy;        /* Must be zero */
-	uint32_t nitems;    /* Number of items contained into the filter (e.g. BPF instructions for BPF filters) */
+    uint16_t filtertype;    /* type of the filter transferred (BPF instructions, ...) */
+    uint16_t dummy;        /* Must be zero */
+    uint32_t nitems;    /* Number of items contained into the filter (e.g. BPF instructions for BPF filters) */
 };
 
 /* Structure that keeps a single BPF instruction; it is repeated 'ninsn' times according to the 'rpcap_filterbpf' header */
 struct rpcap_filterbpf_insn {
-	uint16_t code;    /* opcode of the instruction */
-	uint8_t jt;    /* relative offset to jump to in case of 'true' */
-	uint8_t jf;    /* relative offset to jump to in case of 'false' */
-	int32_t k;    /* instruction-dependent value */
+    uint16_t code;    /* opcode of the instruction */
+    uint8_t jt;    /* relative offset to jump to in case of 'true' */
+    uint8_t jf;    /* relative offset to jump to in case of 'false' */
+    int32_t k;    /* instruction-dependent value */
 };
 
 /* Structure that keeps the data required for the authentication on the remote host */
 struct rpcap_auth {
-	uint16_t type;    /* Authentication type */
-	uint16_t dummy;    /* Must be zero */
-	uint16_t slen1;    /* Length of the first authentication item (e.g. username) */
-	uint16_t slen2;    /* Length of the second authentication item (e.g. password) */
+    uint16_t type;    /* Authentication type */
+    uint16_t dummy;    /* Must be zero */
+    uint16_t slen1;    /* Length of the first authentication item (e.g. username) */
+    uint16_t slen2;    /* Length of the second authentication item (e.g. password) */
 };
 
 /* Structure that keeps the statistics about the number of packets captured, dropped, etc. */
 struct rpcap_stats {
-	uint32_t ifrecv;    /* Packets received by the kernel filter (i.e. pcap_stats.ps_recv) */
-	uint32_t ifdrop;    /* Packets dropped by the network interface (e.g. not enough buffers) (i.e. pcap_stats.ps_ifdrop) */
-	uint32_t krnldrop;    /* Packets dropped by the kernel filter (i.e. pcap_stats.ps_drop) */
-	uint32_t svrcapt;    /* Packets captured by the RPCAP daemon and sent on the network */
+    uint32_t ifrecv;    /* Packets received by the kernel filter (i.e. pcap_stats.ps_recv) */
+    uint32_t ifdrop;    /* Packets dropped by the network interface (e.g. not enough buffers) (i.e. pcap_stats.ps_ifdrop) */
+    uint32_t krnldrop;    /* Packets dropped by the kernel filter (i.e. pcap_stats.ps_drop) */
+    uint32_t svrcapt;    /* Packets captured by the RPCAP daemon and sent on the network */
 };
 
 /* Structure that is needed to set sampling parameters */
 struct rpcap_sampling {
-	uint8_t method;    /* Sampling method */
-	uint8_t dummy1;    /* Must be zero */
-	uint16_t dummy2;    /* Must be zero */
-	uint32_t value;        /* Parameter related to the sampling method */
+    uint8_t method;    /* Sampling method */
+    uint8_t dummy1;    /* Must be zero */
+    uint16_t dummy2;    /* Must be zero */
+    uint32_t value;        /* Parameter related to the sampling method */
 };
 
 /*
@@ -422,11 +422,11 @@ struct rpcap_sampling {
 
 extern void
 rpcap_createhdr(struct rpcap_header *header, uint8_t ver, uint8_t type,
-				uint16_t value, uint32_t length);
+		uint16_t value, uint32_t length);
 
 extern const char *rpcap_msg_type_string(uint8_t type);
 
 extern int rpcap_senderror(SOCKET sock, SSL *ssl, uint8_t ver, uint16_t errcode,
-						   const char *error, char *errbuf);
+			   const char *error, char *errbuf);
 
 #endif

@@ -175,7 +175,7 @@ struct pcap_opt {
      * Platform-dependent options.
      */
 #ifdef __linux__
-    int	protocol;	/* protocol to use when creating PF_PACKET socket */
+    int protocol;        /* protocol to use when creating PF_PACKET socket */
 #endif
 };
 
@@ -501,28 +501,28 @@ typedef int (*get_if_flags_func)(const char *, bpf_u_int32 *, char *);
 int pcap_platform_finddevs(pcap_if_list_t *, char *);
 
 int pcap_findalldevs_interfaces(pcap_if_list_t *, char *,
-                                int (*)(const char *), get_if_flags_func);
+				int (*)(const char *), get_if_flags_func);
 
 pcap_if_t *find_or_add_dev(pcap_if_list_t *, const char *, bpf_u_int32,
-                           get_if_flags_func, const char *, char *);
+			   get_if_flags_func, const char *, char *);
 
 pcap_if_t *find_dev(pcap_if_list_t *, const char *);
 
 pcap_if_t *add_dev(pcap_if_list_t *, const char *, bpf_u_int32, const char *,
-                   char *);
+		   char *);
 
 int add_addr_to_dev(pcap_if_t *, struct sockaddr *, size_t,
-                    struct sockaddr *, size_t, struct sockaddr *, size_t,
-                    struct sockaddr *dstaddr, size_t, char *errbuf);
+		    struct sockaddr *, size_t, struct sockaddr *, size_t,
+		    struct sockaddr *dstaddr, size_t, char *errbuf);
 
 pcap_if_t *find_or_add_if(pcap_if_list_t *, const char *, bpf_u_int32,
-                          get_if_flags_func, char *);
+			  get_if_flags_func, char *);
 
 int add_addr_to_if(pcap_if_list_t *, const char *, bpf_u_int32,
-                   get_if_flags_func,
-                   struct sockaddr *, size_t, struct sockaddr *, size_t,
-                   struct sockaddr *, size_t, struct sockaddr *, size_t,
-                   char *);
+		   get_if_flags_func,
+		   struct sockaddr *, size_t, struct sockaddr *, size_t,
+		   struct sockaddr *, size_t, struct sockaddr *, size_t,
+		   char *);
 
 /*
  * Internal interfaces for "pcap_open_offline()" and other savefile
@@ -556,7 +556,7 @@ int add_addr_to_if(pcap_if_list_t *, const char *, bpf_u_int32,
         offsetof (struct { pcap_t __common; type __private; }, __private))
 
 pcap_t *pcap_open_offline_common(char *ebuf, size_t total_size,
-                                 size_t private_data);
+				 size_t private_data);
 
 bpf_u_int32 pcap_adjust_snapshot(bpf_u_int32 linktype, bpf_u_int32 snaplen);
 
@@ -585,8 +585,8 @@ struct pcap_bpf_aux_data {
  * argument.
  */
 u_int pcap_filter_with_aux_data(const struct bpf_insn *,
-                                const u_char *, u_int, u_int,
-                                const struct pcap_bpf_aux_data *);
+				const u_char *, u_int, u_int,
+				const struct pcap_bpf_aux_data *);
 
 /*
  * Filtering routine that doesn't.
@@ -617,10 +617,10 @@ int pcap_strcasecmp(const char *, const char *);
  * rpcaps://).
  */
 int pcap_createsrcstr_ex(char *, int, const char *, const char *,
-                         const char *, const char *, unsigned char, char *);
+			 const char *, const char *, unsigned char, char *);
 
 int pcap_parsesrcstr_ex(const char *, int *, char *, char *,
-                        char *, char *, unsigned char *, char *);
+			char *, char *, unsigned char *, char *);
 
 #ifdef YYDEBUG
 extern int pcap_debug;
